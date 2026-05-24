@@ -1,0 +1,283 @@
+/*
+ * Playbook V2 — Phase 1 styles.
+ *
+ * NOTE: These are largely a verbatim port of the V1 CSS so the demo renders
+ * with V1's visual style for the "before" snapshot. The full visual modernization
+ * (design tokens, responsive units, mobile breakpoints, dark mode, real field
+ * markings) happens in Phase 2.
+ */
+
+/* --- Book pages --- */
+.pages-container {
+  width: 800px;
+  height: 500px;
+  display: flex;
+  border-radius: 10%;
+  margin-bottom: 100px;
+}
+
+.page-item {
+  background-color: lightslategrey;
+  border: 2px solid green;
+  padding: 20px;
+  font-size: 30px;
+  align-items: center;
+  width: 50%;
+  height: 100%;
+  border-radius: 10%;
+}
+
+.task-bar {
+  background-color: lightslategrey;
+  display: inline-flex;
+  width: 100%;
+  height: 3.5%;
+}
+
+.left-button,
+.right-button {
+  font-family: Arial, Helvetica, sans-serif;
+  background-color: white;
+}
+
+.left-button { float: left; }
+.right-button { float: right; }
+
+.save-button {
+  float: right;
+  font-family: Arial, Helvetica, sans-serif;
+  background-color: green;
+}
+
+.page-content {
+  margin-top: 25px;
+  width: 100%;
+  height: 90%;
+  background-color: lightslategrey;
+  align-items: center;
+  align-content: center;
+  border-radius: 10%;
+}
+
+.page-image {
+  width: 100%;
+  height: 80%;
+  background-color: white;
+  border-radius: 10%;
+}
+
+.title {
+  width: 20%;
+  height: 5%;
+  display: flex;
+  margin-bottom: 10px;
+  font-size: large;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.page-title {
+  width: 100%;
+  height: 40px;
+  align-items: center;
+  text-align-last: center;
+  background-color: green;
+  font-family: Arial, Helvetica, sans-serif;
+  border-radius: 30%;
+}
+
+.link-button-container {
+  width: 100%;
+  height: 20px;
+  align-items: center;
+}
+
+.link-button {
+  align-items: center;
+  text-align-last: center;
+  display: flex;
+  font-family: Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif;
+  background-color: green;
+}
+
+/* --- Create-play form --- */
+.form-box {
+  margin-top: 50px;
+  width: 400px;
+  height: 80px;
+  border: 2px solid green;
+  background-color: lightslategrey;
+  border-radius: 1%;
+  align-content: center;
+  align-items: center;
+}
+
+.forms {
+  width: 100%;
+  height: 100%;
+  align-self: center;
+  vertical-align: middle;
+  position: relative;
+}
+
+.forms2 {
+  width: 165px;
+  height: 200%;
+  font-size: 15px;
+}
+
+.form-title {
+  width: 100%;
+  height: 40px;
+  position: relative;
+  text-align-last: center;
+  font-size: x-large;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* --- Demo page layout (used by demo/index.html) --- */
+.landing-page {
+  background-color: rgb(216, 175, 99);
+}
+
+.landing-title {
+  font-size: 1000%;
+  text-align: center;
+  padding: 10px;
+  margin: auto;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.landing-sub-title {
+  font-size: 300%;
+  padding: 10px;
+  margin: auto;
+  font-family: Arial, Helvetica, sans-serif;
+  text-align: center;
+}
+
+.explanation-block {
+  margin-top: 150px;
+  text-align: center;
+  font-size: x-large;
+  font-family: Arial, Helvetica, sans-serif;
+  margin-bottom: 50px;
+}
+
+.showcase {
+  margin-top: 100px;
+  display: flex;
+  justify-content: center;
+}
+
+/* --- xx-large field (the original "big" size) --- */
+.field-top {
+  background-color: green;
+  width: 1220px;
+  height: 500px;
+  color: black;
+  font-size: xx-large;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.field {
+  background-color: green;
+  width: 1220px;
+  height: 220px;
+  position: relative;
+}
+
+.front {
+  width: 100%;
+  height: 50px;
+  display: flex;
+  justify-content: center;
+  position: relative;
+}
+
+.mid-back {
+  margin-top: 10px;
+  width: 100%;
+  height: 50px;
+  display: flex;
+  justify-content: center;
+  position: relative;
+}
+
+.player {
+  background-color: black;
+  color: white;
+  border-radius: 50%;
+  height: 50px;
+  width: 50px;
+  margin: 5px;
+  text-align: center;
+  position: relative;
+  font-family: Arial, Helvetica, sans-serif;
+  /* 1px white ring for edge contrast on the green field — black-on-green
+     has too little perimeter contrast and the eye reads JPEG/AA smearing
+     as a flat edge. Box-shadow respects border-radius and doesn't affect
+     box dimensions (unlike border). See PLAN.md working notes. */
+  box-shadow: 0 0 0 1px white;
+}
+
+.sandbox {
+  background-color: lightslategrey;
+  width: 1220px;
+  height: 235px;
+  display: flex;
+  margin-top: 20px;
+}
+
+/* --- large field (the default size used in most demos) --- */
+.field-top-large {
+  background-color: green;
+  width: 854px;
+  height: 350px;
+  color: black;
+  font-size: xx-large;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.field-large {
+  background-color: green;
+  width: 854px;
+  height: 161px;
+  position: relative;
+}
+
+.front-large {
+  width: 100%;
+  height: 35px;
+  display: flex;
+  justify-content: center;
+  position: relative;
+}
+
+.mid-back-large {
+  margin-top: 10px;
+  width: 100%;
+  height: 35px;
+  display: flex;
+  justify-content: center;
+  position: relative;
+}
+
+.player-large {
+  background-color: black;
+  color: white;
+  border-radius: 50%;
+  height: 35px;
+  width: 35px;
+  margin: 5px;
+  text-align: center;
+  position: relative;
+  font-size: x-small;
+  font-family: Arial, Helvetica, sans-serif;
+  /* See `.player` comment — 1px white ring for edge contrast. */
+  box-shadow: 0 0 0 1px white;
+}
+
+.sandbox-large {
+  background-color: lightslategrey;
+  display: flex;
+}
