@@ -11,7 +11,8 @@ This file is the **single source of truth for where the project is going**. Upda
 - [x] **Phase 1** — Library foundation (rename, refactor, drop jQuery, TS) ✅
 - [x] **Phase 2** — Visual modernization (CSS, responsive) ✅
 - [x] **Phase 3** — UX overhaul (reactive sandbox, unified save, per-page edit, connected layout) ✅
-- [ ] **Phase 4** — Functional polish & interaction UX (layout polish, save flow rework, animation guards)
+- [x] **Phase 4** — Functional polish & interaction UX (layout polish, save flow rework, animation guards) ✅
+- [ ] **Phase 4.5** — Library hardening & API cleanup (silent-failure fixes, API-shape settle, teardown/dispose) — *second refactor pass*
 - [ ] **Phase 5** — Playground MVP (editor + iframe preview)
 - [ ] **Phase 6** — Playground polish (snippets, shareable URLs)
 - [ ] **Phase 7** — Extension feature (JSON export/import)
@@ -198,7 +199,7 @@ edit-then-name-then-save workflow.
   light `#2c8a4a → #1f7c40`. Less neon, more forest; the primary action
   still reads as the obvious affordance but doesn't dominate.
 
-### Part C — Animation interaction guards (⏳ next)
+### Part C — Animation interaction guards (✅ done)
 
 While an animation is running, every other control on the field can
 corrupt it (changing a dropdown overwrites the transform target;
@@ -207,45 +208,161 @@ part introduces "playback mode" — Play disables, controls lock,
 Reset becomes visible — and exposes the completion signal as a public
 Promise so playground tutorials can `await field.play()`.
 
-- [ ] **Disable Play Animation button during animation.** Track running
+- [x] **Disable Play Animation button during animation.** Track running
   state on the displayer; flip Play's `disabled` on click; flip it back
   when all per-player animations resolve.
-- [ ] **Use `Promise.all` over per-player promises, not duration math.**
+- [x] **Use `Promise.all` over per-player promises, not duration math.**
   `animateInSequence` already returns a Promise that resolves when each
   player's chain finishes (lines 28–80 of `animation.ts`). Collecting
   them with `Promise.all` correctly handles `prefers-reduced-motion`,
   no-op steps, cancellation, and exact frame timing — math on
   `max(per-player total duration)` would get those wrong.
-- [ ] **Reveal Reset only after first animation finishes.** Use
+- [x] **Reveal Reset only after first animation finishes.** Use
   `visibility: hidden → visible` (not `display: none`) so the Play row
   doesn't reflow. Reset stays visible after the first play.
-- [ ] **Lock sandbox dropdowns during animation.** Set the `<select>`s
+- [x] **Lock sandbox dropdowns during animation.** Set the `<select>`s
   disabled when Play fires, re-enable on completion. Prevents move-name
   changes from racing against the running transform.
-- [ ] **Lock per-page Initialize Play buttons during animation.** Same
+- [x] **Lock per-page Initialize Play buttons during animation.** Same
   treatment — a wholesale state swap mid-flight visibly snaps players.
-- [ ] **Save to Book stays interactive.** It captures dropdown state
+- [x] **Save to Book stays interactive.** It captures dropdown state
   (data), not transform state (in-flight), so a snapshot during play is
   coherent. No reason to lock it.
-- [ ] **Public `field.play(): Promise<void>` API.** Expose the
+- [x] **Public `field.play(): Promise<void>` API.** Expose the
   Promise.all-await as a method on `PlayDisplayer`. Existing button
   handler delegates to it. Playground snippets become
   `await field.play(); // do next thing`. Cancel → Promise rejects with
   `AbortError`; caller wraps in `try/catch`.
-- [ ] **Tests** — new vitest cases covering disabled-during-play,
+- [x] **Tests** — new vitest cases covering disabled-during-play,
   Reset visibility flip, and the `field.play()` Promise resolution and
   cancel rejection.
 
-**Exit criteria:**
-- Clicking Play twice in quick succession only runs the animation once.
-- Reset is invisible on initial render and after Reset is clicked again;
+**Exit criteria:** ✅ all met
+- ✅ Clicking Play twice in quick succession only runs the animation once
+  (`concurrent play() calls return the same in-flight Promise` test).
+- ✅ Reset is invisible on initial render and after Reset is clicked again;
   visible while/after a play is running.
-- During animation: dropdowns + Initialize Play disabled; Save to Book
+- ✅ During animation: dropdowns + Initialize Play disabled; Save to Book
   enabled; Play disabled.
-- `await field.play()` resolves exactly when the last player's last step
-  finishes painting.
-- 30+ tests passing, typecheck + build clean, bundle still well under
-  10 KB gzipped.
+- ✅ `await field.play()` resolves and leaves state in `played`.
+- ✅ **41 tests passing** (9 `moves` + 32 `playbook`), typecheck + build
+  clean, bundle still well under 10 KB gzipped.
+
+---
+
+## Phase 4.5 — Library hardening & API cleanup (second refactor pass)
+
+**Goal:** Close the design/correctness gaps surfaced while building the
+portfolio prototype, *before* the playground (Phase 5+) gets built on top
+of the public API. Phase 1 was the **structural** refactor (1330-line IIFE
+→ typed modules); this is the **hardening** refactor — kill silent
+failures, settle the 1.0 API shape, and add the lifecycle teardown the
+Next.js port needs. Found by a full read-through of `src/` on 2026-05-30
+(see Working notes for the per-file scan). File:line anchors are from that
+read and may drift as code changes — treat them as starting points.
+
+### Tier 1 — Footguns (silent failures that hide bugs)
+
+- [ ] **Stop deriving DOM IDs from the user-supplied `name`.**
+  `displayer.ts` builds element IDs off `this.name`: player `el.id` (107),
+  `sandboxform${name}` (382), `select-${pos}-${name}` + `label.htmlFor`
+  (394/397). Two displayers sharing a name (or both `''` — e.g. portfolio
+  `demo-field` → a bare `<div id="c">`) emit **duplicate IDs** → invalid
+  HTML + broken `<label>`→`<select>` a11y pairing. `layout.ts` already
+  does this right with a module counter (37/45); apply the same per-
+  instance unique suffix. Only the label/select pairing actually needs an
+  id — player `el.id` looks like vestigial V1 jQuery-lookup leftover
+  (nothing calls `getElementById` for it); delete if confirmed dead.
+- [ ] **`setMove` must not silently swallow unknown move names.**
+  `displayer.ts` 219–223 coerces an unrecognized name to `'none'` with no
+  signal — pass the old `'pass-1b'` typo and you get an empty player and
+  zero feedback. Add a dev-mode `console.warn` (or throw) on unknown
+  names; `KNOWN_MOVE_NAMES` is already exported for the check.
+- [ ] **`mountInto` must not silently fall back to `document.body`.**
+  `dom.ts` 42 — a typo'd `parentId` mounts the widget at the bottom of
+  `<body>` instead of erroring. Warn (or throw) when the id isn't found.
+- [ ] **`addPage` / Initialize Play must validate the moves array.**
+  `playbook.ts` 245 does `moves[i] ?? 'none'` with no length check —
+  passing ≠ 11 entries silently blanks or drops positions. Validate length
+  (or adopt the partial-record shape below, which sidesteps it entirely).
+
+### Tier 2 — API shape (settle before 1.0 / before playground snippets)
+
+- [ ] **`addPage` positional `moves: MoveName[]` → also accept
+  `Partial<Record<Position, MoveName>>`.** Full write-up in the 2026-05-30
+  working note below — widen the signature, normalize internally, keep the
+  array form working. Also fixes the Tier-1 length problem for new callers.
+- [ ] **Collapse the dual constructor overloads.** Both `Playbook` (60–72)
+  and `PlayDisplayer` (76–87) accept *either* an options object *or*
+  positional args. Pick the options object for 1.0; the positional form is
+  legacy-compat and only the demos use it. Migrate demos + tests, drop the
+  positional overload. (Breaking, but V2 is unpublished — fine.)
+- [ ] **Stop baking external image URLs into the library.** `playbook.ts`
+  42–43 seeds every book with two `i.ibb.co` pages and no opt-out →
+  surprise third-party network request on construction, broken images if
+  the host 404s, and no way to make an empty book. Make seed pages opt-in/
+  injectable (e.g. `seedPages?: PageData[]` or a `seed: false` flag); move
+  the demo cover/instructions images into the demo, out of `src/`.
+
+### Tier 3 — Lifecycle (blocks the clean Next.js port — Task 3 / Phase 8)
+
+- [ ] **Add `destroy()` / `dispose()` to `PlayDisplayer` and `Playbook`,
+  and a disposer from `createConnectedLayout`.** Nothing is torn down
+  today: ResizeObservers (displayer 204, layout 84) are never
+  disconnected; `playbackSubs` / `movesSubs` are never cleared; `addPage`
+  registers an `onPlaybackStateChange` sub *per page* that's never removed
+  (playbook 252 even admits it relies on "pages don't get rebuilt"). In a
+  Next.js route every mount/unmount leaks observers + detached DOM, and
+  React StrictMode double-invokes mounts. **Highest priority of the
+  phase** — it's the one that actively bites the port.
+
+### Tier 4 — Hygiene / polish
+
+- [ ] **Delete dead code.** `createInput` in `dom.ts` (21–26) is never
+  called (grep-confirmed). Player `el.id` likely vestigial (see Tier 1).
+- [ ] **Export consistency.** `POSITION_FULL_NAMES` is used internally but
+  not re-exported from `index.ts`, while `POSITION_LABELS` is — pick a line
+  and hold it.
+- [ ] **Extract `buildPage`** (`playbook.ts` 187–349) — a 160-line
+  closure-component with mutable closure state (`currentImage`,
+  `videoEditorOpen`) + manual `replaceChildren` rebuilds. The one
+  genuinely hard-to-follow spot; a small `Page` module/class would
+  localize it.
+- [ ] **De-magic the numbers.** Natural field widths `854`/`1220`
+  (displayer 194) live apart from the dimension profiles in `moves.ts`;
+  `img 400×300` is hardcoded twice (playbook 213, 432). Hoist to named
+  constants / source from one place.
+- [ ] **Tighten `as` casts.** `select.value as MoveName` (displayer 410),
+  `reader.result as string` (playbook 335) — narrow where cheap.
+- [ ] **Naming overlap.** Imported `getMove(name, size)` (moves.ts) vs
+  method `PlayDisplayer.getMove(pos)` — same name, different meaning.
+  Consider renaming the method (e.g. `getAssignedMove`).
+
+**Explicitly NOT smells (don't "fix"):** `moves.ts`, `animation.ts`,
+`types.ts`, `index.ts` are clean. String-literal unions (`MoveName` /
+`Position`) are already the modern idiom — no enums. `KNOWN_MOVE_NAMES` +
+`getMoveCatalog` are already exported, so the discoverability story is
+half-done.
+
+**Exit criteria:**
+- No widget emits duplicate DOM IDs when two instances share a name.
+- Unknown move names / missing mount targets produce a visible dev warning
+  (or throw), never a silent no-op.
+- `addPage` accepts the partial-record move shape; the array form still
+  works (test asserts both produce the same saved page).
+- One constructor signature per class (options object).
+- `destroy()` on both classes disconnects every observer + subscription;
+  `createConnectedLayout` returns a disposer; a test mounts/unmounts and
+  asserts no lingering observers.
+- No external image URLs anywhere in `src/`.
+- Dead code removed; tests + typecheck + build green; bundle still
+  < 10 KB gzipped.
+
+**Sequencing note:** Tier 3 (teardown) is the only item that *blocks*
+later work (Task 3 Next.js port). Tier 1 is cheap and high-value (a few
+`console.warn`s + one ID-uniqueness fix). Tier 2 is breaking-API and best
+done as a batch before any playground snippets are written against the
+current shape. Tier 4 can ride along opportunistically.
 
 ---
 
@@ -418,3 +535,55 @@ A few non-obvious calls made during Phase 3 brainstorming that future Claude ses
 **Equal-height rectangle: right column drives height, not book.** With `align-items: stretch` alone, the taller column dictates and the shorter one stretches with dead space at the end. The book's two 4:3 stacked pages are nearly always taller than field+sandbox, so without intervention the right column would stretch into dead space below the sandbox. Fix: `align-self: start` on the main column (so its measured size is its natural content height), ResizeObserver in `layout.ts` publishes that height as `--pb-connected-main-h` on the layout root, book column reads it as `max-height`, and the page-image flex chain shrinks the images to fit. Result: both columns end at the right column's natural height; book pages letterbox via `object-fit: contain` to preserve aspect. A pure-CSS attempt without the observer doesn't work — CSS has no expression for "match the *other* sibling's natural height as a cap on *my* height."
 
 **Animation completion = Promise.all of per-player promises, not duration math.** When wiring the Phase 4 Part C playback-mode guards, the obvious-looking implementation is `setTimeout(maxDurationAcrossAllPlayers)` to flip Play back on. Don't do that. `animateInSequence` is already `async` and awaits each `animation.finished`, so the per-player call returns a Promise that resolves when that player's full step chain finishes. Collecting them with `Promise.all` correctly handles four things we'd otherwise have to hand-roll: (1) `prefers-reduced-motion` snaps and resolves instantly, (2) no-op steps that get skipped don't count toward duration, (3) cancellation rejects the Promise cleanly so the catch path re-enables Play, and (4) the browser knows exactly when the last frame painted whereas a duration timer is off by 1 frame. Same conceptual result, no math to get wrong. Side benefit: this is the same Promise shape that `field.play(): Promise<void>` exposes publicly, so the playground gets `await field.play()` for free.
+
+### 2026-05-30 — API smell: `addPage(..., moves: MoveName[])` positional array
+
+`Playbook.addPage(image, title, video, moves)` takes the moves arg as an
+11-entry positional array indexed by `POSITIONS` order
+(`lte, lt, lg, c, rg, rt, rte, qb, lhb, fb, rhb`). Surfaced while building
+the portfolio prototype's snippet #4 — even with a friendly variable name
+the call site reads as a wall of `'none'` for sparse plays, and there's
+no autocomplete on which slot you're filling.
+
+```ts
+// today
+book.addPage(img, 'Hail Mary Out', vid, [
+  'straight-deep', 'mid-90-left', 'none', 'none', 'none',
+  'mid-90-right', 'straight-deep', 'pass-qb',
+  'none', 'hole-four-fb', 'none',
+]);
+
+// cleaner shape
+book.addPage(img, 'Hail Mary Out', vid, {
+  lte: 'straight-deep', lt: 'mid-90-left',
+  rt: 'mid-90-right', rte: 'straight-deep',
+  qb: 'pass-qb', fb: 'hole-four-fb',
+});
+```
+
+**Fix shape (when picked up):** widen the signature to
+`MoveName[] | Partial<Record<Position, MoveName>> | null`, normalize to
+the existing internal array form inside `addPage`. Backwards-compatible
+— the array form (used by every demo + every test today) keeps working;
+new code adopts the partial-record form. ~15 lines in `playbook.ts` plus
+a test that asserts both shapes produce the same saved page.
+
+Deferred: this is a library DX fix, doesn't belong on the
+`portfolio-prototype` branch. **Now folded into Phase 4.5 (Tier 2)** — the
+hardening pass that runs before the playground writes a lot of `addPage`
+calls against the current shape.
+
+### 2026-05-30 — Full `src/` read-through → Phase 4.5
+
+Read all 8 files in `src/` end-to-end (`index`, `types`, `moves`,
+`displayer`, `playbook`, `animation`, `dom`, `layout`) looking for code
+smells / poor API ergonomics beyond the `addPage` one above. Findings
+written up as **Phase 4.5** (tiered Footguns → API shape → Lifecycle →
+Hygiene). Headlines: (1) DOM IDs built from the user `name` collide across
+instances — `layout.ts` already has the right counter pattern; (2) three
+silent-fallback paths (`setMove` unknown move, `mountInto` bad parent,
+`addPage` short array) that hide typos; (3) zero teardown anywhere — no
+`destroy()`, observers/subs never released — which will leak on every
+Next.js route mount/unmount (the port is Task 3). `moves.ts` /
+`animation.ts` / `types.ts` came out clean; no enum changes needed (string
+unions are already idiomatic).
