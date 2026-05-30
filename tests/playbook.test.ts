@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { Playbook, PlayDisplayer, createConnectedLayout } from '../src/index.js';
 
 describe('PlayDisplayer', () => {
@@ -405,6 +405,132 @@ describe('pageOrientation', () => {
     });
     expect(book.pageOrientation).toBe('vertical');
     expect(book.root.dataset.orientation).toBe('vertical');
+  });
+});
+
+describe('destroy / lifecycle', () => {
+  // jsdom has no ResizeObserver, so the constructors skip their observer setup
+  // unless we provide one. Install a tracking stub so we can assert that
+  // destroy() disconnects every observer it created — the core leak that bites
+  // a Next.js route on every mount/unmount.
+  let observeCount = 0;
+  let disconnectCount = 0;
+
+  beforeEach(() => {
+    document.body.innerHTML = '<div id="root"></div>';
+    observeCount = 0;
+    disconnectCount = 0;
+    class MockResizeObserver {
+      observe(): void {
+        observeCount += 1;
+      }
+      unobserve(): void {}
+      disconnect(): void {
+        disconnectCount += 1;
+      }
+    }
+    (globalThis as unknown as { ResizeObserver: typeof ResizeObserver }).ResizeObserver =
+      MockResizeObserver as unknown as typeof ResizeObserver;
+  });
+
+  afterEach(() => {
+    delete (globalThis as unknown as { ResizeObserver?: typeof ResizeObserver }).ResizeObserver;
+  });
+
+  it('PlayDisplayer.destroy disconnects its observer and removes its DOM', () => {
+    const field = new PlayDisplayer({ size: 'large', name: 'Dispose1', parentId: 'root' });
+    expect(observeCount).toBe(1);
+    expect(document.querySelector('.pb-displayer')).toBeTruthy();
+
+    field.destroy();
+
+    expect(disconnectCount).toBe(1);
+    expect(document.querySelector('.pb-displayer')).toBeNull();
+  });
+
+  it('PlayDisplayer.destroy removes spawned sandboxes and clears subscriptions', () => {
+    const field = new PlayDisplayer({ size: 'large', name: 'Dispose2', parentId: 'root' });
+    field.spawnSandbox(true, 'root');
+    expect(document.querySelector('.sandbox-large, .sandbox')).toBeTruthy();
+
+    let fired = 0;
+    field.onMovesChange(() => {
+      fired += 1;
+    });
+    field.onPlaybackStateChange(() => {
+      fired += 1;
+    });
+    fired = 0; // ignore the immediate-on-subscribe calls
+
+    field.destroy();
+
+    // Sandbox gone with the field.
+    expect(document.querySelector('.sandbox-large, .sandbox')).toBeNull();
+    // Subscriptions dropped — a post-destroy setMove notifies nobody.
+    field.setMove('qb', 'pass-qb');
+    expect(fired).toBe(0);
+  });
+
+  it('PlayDisplayer.destroy is idempotent', () => {
+    const field = new PlayDisplayer({ size: 'large', name: 'Dispose3', parentId: 'root' });
+    field.destroy();
+    expect(() => field.destroy()).not.toThrow();
+    expect(disconnectCount).toBe(1); // not disconnected twice
+  });
+
+  it('Playbook.destroy unsubscribes its field subs and leaves the field intact', () => {
+    const field = new PlayDisplayer({ size: 'large', name: 'Dispose4', parentId: 'root' });
+    const book = new Playbook({ title: 'B', field, allowSave: false, parentId: 'root' });
+    book.addPage('img.png', 'P1', null, [
+      'pass-qb', 'none', 'none', 'none', 'none', 'none', 'none', 'pass-qb', 'none', 'none', 'none',
+    ]);
+
+    book.destroy();
+
+    // Book DOM gone; field still mounted and usable.
+    expect(document.querySelector('.pages-container')).toBeNull();
+    expect(document.querySelector('.pb-displayer')).toBeTruthy();
+    expect(() => field.setMove('qb', 'pass-qb')).not.toThrow();
+    expect(field.getMove('qb')).toBe('pass-qb');
+  });
+
+  it('Playbook.destroy is idempotent', () => {
+    const book = new Playbook({ title: 'B', field: null, allowSave: false, parentId: 'root' });
+    book.destroy();
+    expect(() => book.destroy()).not.toThrow();
+  });
+
+  it('createConnectedLayout returns a disposer that disconnects + removes the scaffold', () => {
+    const layout = createConnectedLayout('root');
+    expect(observeCount).toBe(1);
+    expect(document.querySelector('.pb-connected-layout')).toBeTruthy();
+
+    layout.destroy();
+
+    expect(disconnectCount).toBe(1);
+    expect(document.querySelector('.pb-connected-layout')).toBeNull();
+    // Idempotent.
+    expect(() => layout.destroy()).not.toThrow();
+    expect(disconnectCount).toBe(1);
+  });
+
+  it('full mount → destroy cycle disconnects every observer (no leaks)', () => {
+    const layout = createConnectedLayout('root');
+    const field = new PlayDisplayer({ size: 'large', name: 'Cycle', parentId: layout.fieldSlot });
+    const book = new Playbook({ title: 'Cycle', field, allowSave: true, parentId: layout.bookSlot });
+    field.spawnSandbox(true, layout.sandboxSlot, book.createSaveButton());
+
+    // Two observers: one for the field stage, one for the layout main column.
+    expect(observeCount).toBe(2);
+
+    book.destroy();
+    field.destroy();
+    layout.destroy();
+
+    expect(disconnectCount).toBe(2);
+    expect(document.querySelector('.pb-connected-layout')).toBeNull();
+    expect(document.querySelector('.pb-displayer')).toBeNull();
+    expect(document.querySelector('.pages-container')).toBeNull();
   });
 });
 

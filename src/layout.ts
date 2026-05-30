@@ -32,6 +32,13 @@ export interface ConnectedLayout {
   sandboxSlot: string;
   /** ID of the div to pass to `new Playbook(...).parentId`. */
   bookSlot: string;
+  /**
+   * Tear down the layout: disconnect the height-sync ResizeObserver and remove
+   * the scaffold from the DOM. Idempotent. Doesn't destroy widgets mounted into
+   * the slots — call their own `destroy()` first. Pairs with `PlayDisplayer`/
+   * `Playbook` `destroy()` so a Next.js route can unmount without leaking.
+   */
+  destroy(): void;
 }
 
 let counter = 0;
@@ -74,8 +81,9 @@ export function createConnectedLayout(parentId?: string | null): ConnectedLayout
   // fit. No-op below the 1400px breakpoint — the layout is stacked, the
   // CSS var is just unused. Falls back gracefully if ResizeObserver isn't
   // available (SSR / very old browsers): heights stay un-synced, no crash.
+  let ro: ResizeObserver | null = null;
   if (typeof ResizeObserver !== 'undefined') {
-    const ro = new ResizeObserver((entries) => {
+    ro = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const h = entry.contentRect.height;
         if (h > 0) wrap.style.setProperty('--pb-connected-main-h', `${h}px`);
@@ -84,9 +92,18 @@ export function createConnectedLayout(parentId?: string | null): ConnectedLayout
     ro.observe(mainCol);
   }
 
+  let destroyed = false;
+
   return {
     fieldSlot: fieldSlot.id,
     sandboxSlot: sandboxSlot.id,
     bookSlot: bookCol.id,
+    destroy() {
+      if (destroyed) return;
+      destroyed = true;
+      ro?.disconnect();
+      ro = null;
+      wrap.remove();
+    },
   };
 }

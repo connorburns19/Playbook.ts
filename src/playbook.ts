@@ -59,6 +59,15 @@ export class Playbook {
   private readonly rightSlot: HTMLDivElement;
   private currentLeft: HTMLDivElement | null = null;
   private currentRight: HTMLDivElement | null = null;
+  /**
+   * Unsubscribe handles for the playback subscriptions this book registers on
+   * the connected field (one per page with an Initialize Play button). Released
+   * by `destroy()` so the book doesn't keep the field — or detached pages —
+   * alive after unmount.
+   */
+  private readonly fieldSubs: Array<() => void> = [];
+  /** Set once `destroy()` runs so the instance is inert and the call is idempotent. */
+  private destroyed = false;
 
   constructor(options: PlaybookOptions) {
     this.title = options.title;
@@ -153,6 +162,25 @@ export class Playbook {
     return btn;
   }
 
+  /**
+   * Tear down this book: release every playback subscription registered on the
+   * connected field, drop page references, and remove the book from the DOM.
+   * Idempotent. The connected `field` is *not* destroyed — it can be shared or
+   * owned elsewhere; destroy it separately via `field.destroy()`.
+   */
+  destroy(): void {
+    if (this.destroyed) return;
+    this.destroyed = true;
+
+    for (const unsub of this.fieldSubs) unsub();
+    this.fieldSubs.length = 0;
+
+    this.pages.length = 0;
+    this.currentLeft = null;
+    this.currentRight = null;
+    this.root.remove();
+  }
+
   private attachPage(page: HTMLDivElement): void {
     this.pages.push(page);
     const index = this.pages.length - 1;
@@ -244,11 +272,14 @@ export class Playbook {
       });
       actions.append(initBtn);
       // Lock during animation — a wholesale state swap mid-flight would
-      // visibly snap players around. Pages don't get rebuilt after
-      // creation in the current flow, so the subscription doesn't leak.
-      this.field.onPlaybackStateChange((state) => {
-        initBtn.disabled = state === 'playing';
-      });
+      // visibly snap players around. We hold the unsubscribe handle so
+      // `destroy()` can release it (the field outlives the book in shared
+      // setups, so a dangling sub would pin every detached page).
+      this.fieldSubs.push(
+        this.field.onPlaybackStateChange((state) => {
+          initBtn.disabled = state === 'playing';
+        }),
+      );
     }
 
     // Video section — link / "+ Add video" / inline URL editor

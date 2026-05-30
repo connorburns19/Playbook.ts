@@ -83,6 +83,20 @@ export class PlayDisplayer {
   /** Most recent in-flight `play()` Promise, so re-entrancy returns the same one. */
   private currentPlayPromise: Promise<void> | null = null;
 
+  /**
+   * The responsive ResizeObserver, kept so `destroy()` can disconnect it.
+   * `null` when ResizeObserver isn't available (SSR / old browsers).
+   */
+  private resizeObserver: ResizeObserver | null = null;
+  /**
+   * Sandbox shells spawned for this displayer, removed from the DOM on
+   * `destroy()`. They're mounted into arbitrary parents (their own `parentId`),
+   * so the displayer has to track them to tear them down.
+   */
+  private readonly sandboxes: HTMLDivElement[] = [];
+  /** Set once `destroy()` runs so the instance is inert and the call is idempotent. */
+  private destroyed = false;
+
   constructor(options: PlayDisplayerOptions) {
     this.size = options.size;
     this.name = options.name;
@@ -205,8 +219,8 @@ export class PlayDisplayer {
     };
     applyScale(); // synchronous initial pass (forces layout via clientWidth)
     if (typeof ResizeObserver !== 'undefined') {
-      const ro = new ResizeObserver(applyScale);
-      ro.observe(stage);
+      this.resizeObserver = new ResizeObserver(applyScale);
+      this.resizeObserver.observe(stage);
     }
   }
 
@@ -461,7 +475,39 @@ export class PlayDisplayer {
     }
 
     mountInto(shell, parentId);
+    this.sandboxes.push(shell);
     return shell;
+  }
+
+  /**
+   * Tear down this displayer: cancel any in-flight animation, disconnect the
+   * ResizeObserver, drop every subscription, and remove the field + any
+   * spawned sandboxes from the DOM. Idempotent — safe to call twice (e.g.
+   * React StrictMode's double-invoke or a re-entrant unmount).
+   *
+   * After `destroy()` the instance is inert; don't call `setMove`/`play` on it.
+   */
+  destroy(): void {
+    if (this.destroyed) return;
+    this.destroyed = true;
+
+    // Cancel running animations + clear transforms (also flips state to 'idle',
+    // notifying subscribers one last time before we drop them).
+    this.reset();
+
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = null;
+
+    // Drop subscriptions so retained callbacks (and whatever they close over)
+    // can be garbage-collected. Includes the per-sandbox playback subs.
+    this.playbackSubs.length = 0;
+    this.movesSubs.length = 0;
+    this.sandboxSelectGroups.length = 0;
+
+    // Remove spawned sandboxes, then the field itself.
+    for (const shell of this.sandboxes) shell.remove();
+    this.sandboxes.length = 0;
+    this.root.remove();
   }
 }
 

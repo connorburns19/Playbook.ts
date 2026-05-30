@@ -306,17 +306,31 @@ read and may drift as code changes — treat them as starting points.
   injectable (e.g. `seedPages?: PageData[]` or a `seed: false` flag); move
   the demo cover/instructions images into the demo, out of `src/`.
 
-### Tier 3 — Lifecycle (blocks the clean Next.js port — Task 3 / Phase 8)
+### Tier 3 — Lifecycle (blocks the clean Next.js port — Task 3 / Phase 8) ✅
 
-- [ ] **Add `destroy()` / `dispose()` to `PlayDisplayer` and `Playbook`,
-  and a disposer from `createConnectedLayout`.** Nothing is torn down
-  today: ResizeObservers (displayer 204, layout 84) are never
-  disconnected; `playbackSubs` / `movesSubs` are never cleared; `addPage`
-  registers an `onPlaybackStateChange` sub *per page* that's never removed
-  (playbook 252 even admits it relies on "pages don't get rebuilt"). In a
-  Next.js route every mount/unmount leaks observers + detached DOM, and
-  React StrictMode double-invokes mounts. **Highest priority of the
-  phase** — it's the one that actively bites the port.
+- [x] **Add `destroy()` to `PlayDisplayer` and `Playbook`, and a disposer
+  from `createConnectedLayout`.** Settled on a single `destroy()` method
+  name per class (not a `destroy`/`dispose` pair) and a `destroy()` member
+  on the `ConnectedLayout` return object. All three are idempotent (guard
+  flag), so React StrictMode's double-invoke is safe.
+  - `PlayDisplayer.destroy()` — cancels the in-flight animation (`reset()`),
+    disconnects the responsive ResizeObserver (now held as an instance
+    field), clears `playbackSubs` / `movesSubs` / `sandboxSelectGroups`, and
+    removes the field + every spawned sandbox shell from the DOM. Sandboxes
+    are tracked in a new `sandboxes` array because they mount into arbitrary
+    parents the displayer otherwise wouldn't be able to find.
+  - `Playbook.destroy()` — releases the per-page `onPlaybackStateChange`
+    subs it registered on the connected field (now captured into a
+    `fieldSubs` array instead of fire-and-forget), drops page refs, removes
+    the book DOM. Deliberately does **not** destroy the connected field —
+    fields can be shared / owned elsewhere; caller destroys it separately.
+  - `createConnectedLayout(...).destroy()` — disconnects the height-sync
+    observer and removes the scaffold.
+  - Tests: 8 new cases in a `destroy / lifecycle` block. Installs a tracking
+    `ResizeObserver` stub (jsdom has none) to assert observe/disconnect
+    counts; covers idempotency, sandbox teardown, sub-clearing (post-destroy
+    `setMove` notifies nobody), field-survives-book-destroy, and a full
+    mount→destroy cycle asserting both observers disconnect.
 
 ### Tier 4 — Hygiene / polish
 
@@ -574,6 +588,37 @@ Deferred: this is a library DX fix, doesn't belong on the
 `portfolio-prototype` branch. **Now folded into Phase 4.5 (Tier 2)** — the
 hardening pass that runs before the playground writes a lot of `addPage`
 calls against the current shape.
+
+### 2026-05-30 — Phase 4.5 Tier 3 (lifecycle / teardown)
+
+**`destroy()`, single name, idempotent.** PLAN floated "`destroy()` /
+`dispose()`" — picked one (`destroy()`) per class plus a `destroy()` member
+on the `createConnectedLayout` return object, rather than shipping aliases.
+One name to document, one to test. Every `destroy()` guards on a `destroyed`
+flag and returns early on the second call so React StrictMode's deliberate
+mount→unmount→remount double-invoke (and any re-entrant unmount) is safe.
+
+**Ownership rule: destroy only what you constructed.** `Playbook.destroy()`
+does **not** destroy its connected `PlayDisplayer`. A field can be shared
+across books or owned by the page, so tearing it down from the book would be
+a surprise. The book only releases the subscriptions *it* registered on the
+field (the per-page Initialize-Play playback subs, now captured into
+`fieldSubs` instead of fire-and-forget). Same logic for `createConnectedLayout`'s
+disposer: it removes its own scaffold + observer but leaves the widgets
+mounted in its slots alone. A Next.js route unmount calls all three in turn.
+
+**Sandbox tracking.** Sandboxes mount into an arbitrary `parentId`, so the
+displayer couldn't otherwise find them at teardown. Added a `sandboxes: HTMLDivElement[]`
+that `spawnSandbox` pushes to and `destroy()` removes. The existing
+`sandboxSelectGroups` only held `<select>` refs for state-sync, not the shells.
+
+**Testing observers in jsdom.** jsdom ships no `ResizeObserver`, so the
+constructors' observer setup is normally skipped entirely. The lifecycle
+tests install a tracking stub on `globalThis` in `beforeEach` (removed in
+`afterEach`) that counts `observe`/`disconnect`, letting us assert the full
+mount→destroy cycle disconnects exactly the observers it created (2: field
+stage + layout main column). Bundle after Tier 1–3: **9.25 KB gzipped**
+(still under the 10 KB budget).
 
 ### 2026-05-30 — Full `src/` read-through → Phase 4.5
 
