@@ -15,7 +15,7 @@
  */
 
 import { createButton, createDiv, mountInto } from './dom.js';
-import type { MoveName } from './types.js';
+import type { MoveName, PageData, PageMoves } from './types.js';
 import { POSITIONS } from './types.js';
 import type { PlayDisplayer } from './displayer.js';
 
@@ -36,11 +36,14 @@ export interface PlaybookOptions {
   allowSave?: boolean;
   parentId?: string | null;
   pageOrientation?: PageOrientation;
+  /**
+   * Static intro pages to seed the book with (e.g. a cover + instructions).
+   * Rendered image-only — `image` is the source, `title` is used as alt text;
+   * `videoLink`/`moves` are ignored. Omit for an empty book. The library no
+   * longer ships any hardcoded image URLs, so seeding is fully opt-in.
+   */
+  seedPages?: PageData[];
 }
-
-// Default V1 placeholder images, preserved for parity.
-const DEFAULT_COVER_IMAGE = 'https://i.ibb.co/hyx1q6c/playbook.png';
-const DEFAULT_INSTRUCTIONS_IMAGE = 'https://i.ibb.co/7YhctXj/instructions.png';
 
 export class Playbook {
   readonly title: string;
@@ -57,37 +60,19 @@ export class Playbook {
   private currentLeft: HTMLDivElement | null = null;
   private currentRight: HTMLDivElement | null = null;
 
-  constructor(options: PlaybookOptions);
-  constructor(
-    title: string,
-    field?: PlayDisplayer | null,
-    allowSave?: boolean,
-    parentId?: string | null,
-  );
-  constructor(
-    titleOrOptions: string | PlaybookOptions,
-    field?: PlayDisplayer | null,
-    allowSave?: boolean,
-    parentId?: string | null,
-  ) {
-    const opts: PlaybookOptions =
-      typeof titleOrOptions === 'string'
-        ? {
-            title: titleOrOptions,
-            field: field ?? null,
-            allowSave: allowSave ?? false,
-            parentId: parentId ?? null,
-          }
-        : titleOrOptions;
+  constructor(options: PlaybookOptions) {
+    this.title = options.title;
+    this.field = options.field ?? null;
+    this.allowSave = options.allowSave ?? false;
+    this.pageOrientation = options.pageOrientation ?? 'horizontal';
 
-    this.title = opts.title;
-    this.field = opts.field ?? null;
-    this.allowSave = opts.allowSave ?? false;
-    this.pageOrientation = opts.pageOrientation ?? 'horizontal';
-
-    // Seed with the V1 cover + instructions pages so the book is never empty.
-    this.pages.push(buildDefaultPage(DEFAULT_COVER_IMAGE, 'Playbook cover'));
-    this.pages.push(buildDefaultPage(DEFAULT_INSTRUCTIONS_IMAGE, 'Usage instructions'));
+    // Optional intro pages (e.g. cover / instructions). Off by default so a
+    // fresh book makes no surprise third-party network request and can be
+    // genuinely empty. Rendered image-only (title used as alt text); for
+    // editable or field-connected pages, use addPage after construction.
+    for (const seed of options.seedPages ?? []) {
+      this.pages.push(buildDefaultPage(seed.image, seed.title));
+    }
 
     const container = createDiv('pages-container');
     container.setAttribute('role', 'region');
@@ -126,7 +111,7 @@ export class Playbook {
     backBtn.addEventListener('click', () => this.goBack());
 
     this.root = container;
-    mountInto(container, opts.parentId);
+    mountInto(container, options.parentId);
   }
 
   /**
@@ -135,18 +120,20 @@ export class Playbook {
    * `videoLink` works the same way.
    *
    * If a `field` is connected and `moves` is provided, the page also includes an
-   * "Initialize Play" button that loads those moves into the field.
+   * "Initialize Play" button that loads those moves into the field. `moves` may
+   * be an array in `POSITIONS` order or a partial `{ position: move }` map (see
+   * `PageMoves`); either way it's normalized to one entry per position.
    */
   addPage(
     image: string | null,
     title: string,
     videoLink?: string | null,
-    moves?: MoveName[] | null,
+    moves?: PageMoves | null,
   ): void {
     // Developer-added pages are read-only — only user-saved plays (via the
     // Save button → saveFieldStateAsPage) get the per-page edit affordances.
     this.attachPage(
-      this.buildPage(image, title, videoLink ?? null, moves ?? null, /* editable */ false),
+      this.buildPage(image, title, videoLink ?? null, normalizePageMoves(moves), /* editable */ false),
     );
   }
 
@@ -168,9 +155,18 @@ export class Playbook {
 
   private attachPage(page: HTMLDivElement): void {
     this.pages.push(page);
+    const index = this.pages.length - 1;
 
-    // If the new page lands on the currently-visible right slot, render it now.
-    if (this.currentPageIndex === this.pages.length - 2 && !this.currentRight) {
+    // Render immediately if the new page lands in a currently-empty visible
+    // slot. The left-slot case matters now that books can start empty (no seed
+    // pages): without it, a book's very first page would sit in `pages` unseen
+    // until the next navigation. Seeded books already filled both slots in the
+    // constructor, so later additions fall through to a no-op here (correct —
+    // they live on a later spread reached by Back/Forward).
+    if (index === this.currentPageIndex && !this.currentLeft) {
+      this.currentLeft = page;
+      this.leftSlot.append(page);
+    } else if (index === this.currentPageIndex + 1 && !this.currentRight) {
       this.currentRight = page;
       this.rightSlot.append(page);
     }
@@ -419,6 +415,26 @@ export class Playbook {
     this.currentPageIndex = target;
     this.renderCurrentPages();
   }
+}
+
+/**
+ * Normalize `addPage`'s flexible `moves` input to a length-11 array in
+ * `POSITIONS` order (or `null` when no moves were given). Accepts either an
+ * ordered array or a partial `{ position: move }` map. The array form warns
+ * (but doesn't throw) on a wrong length so a miscount surfaces instead of
+ * silently blanking or dropping positions.
+ */
+function normalizePageMoves(moves: PageMoves | null | undefined): MoveName[] | null {
+  if (moves == null) return null;
+  if (Array.isArray(moves)) {
+    if (moves.length !== POSITIONS.length) {
+      console.warn(
+        `[playbook] addPage: expected ${POSITIONS.length} moves in POSITIONS order, got ${moves.length}; missing positions default to 'none' and extras are ignored.`,
+      );
+    }
+    return POSITIONS.map((_pos, i) => moves[i] ?? 'none');
+  }
+  return POSITIONS.map((pos) => moves[pos] ?? 'none');
 }
 
 function buildDefaultPage(imageUrl: string, altText: string): HTMLDivElement {

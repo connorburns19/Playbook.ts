@@ -10,8 +10,8 @@
  *
  * @example
  *   const layout = createConnectedLayout('my-section');
- *   const field  = new PlayDisplayer('large', 'X', layout.fieldSlot);
- *   const book   = new Playbook('X', field, true, layout.bookSlot);
+ *   const field  = new PlayDisplayer({ size: 'large', name: 'X', parentId: layout.fieldSlot });
+ *   const book   = new Playbook({ title: 'X', field, allowSave: true, parentId: layout.bookSlot });
  *   field.spawnSandbox(true, layout.sandboxSlot);
  *
  * Behavior:

@@ -23,6 +23,7 @@ export type {
   MoveStep,
   CSSOffset,
   PageData,
+  PageMoves,
 } from './types.js';
 
 export { getMove, getMoveCatalog, KNOWN_MOVE_NAMES } from './moves.js';

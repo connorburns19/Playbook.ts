@@ -281,23 +281,25 @@ read and may drift as code changes — treat them as starting points.
 - [x] **`mountInto` must not silently fall back to `document.body`.**
   `dom.ts` 42 — a typo'd `parentId` mounts the widget at the bottom of
   `<body>` instead of erroring. Warn (or throw) when the id isn't found.
-- [ ] **`addPage` / Initialize Play must validate the moves array.**
+- [x] **`addPage` / Initialize Play must validate the moves array.**
   `playbook.ts` 245 does `moves[i] ?? 'none'` with no length check —
   passing ≠ 11 entries silently blanks or drops positions. Validate length
   (or adopt the partial-record shape below, which sidesteps it entirely).
+  *Done in Tier 2: `normalizePageMoves` warns on a wrong-length array and the
+  partial-record form sidesteps length entirely.*
 
 ### Tier 2 — API shape (settle before 1.0 / before playground snippets)
 
-- [ ] **`addPage` positional `moves: MoveName[]` → also accept
+- [x] **`addPage` positional `moves: MoveName[]` → also accept
   `Partial<Record<Position, MoveName>>`.** Full write-up in the 2026-05-30
   working note below — widen the signature, normalize internally, keep the
   array form working. Also fixes the Tier-1 length problem for new callers.
-- [ ] **Collapse the dual constructor overloads.** Both `Playbook` (60–72)
+- [x] **Collapse the dual constructor overloads.** Both `Playbook` (60–72)
   and `PlayDisplayer` (76–87) accept *either* an options object *or*
   positional args. Pick the options object for 1.0; the positional form is
   legacy-compat and only the demos use it. Migrate demos + tests, drop the
   positional overload. (Breaking, but V2 is unpublished — fine.)
-- [ ] **Stop baking external image URLs into the library.** `playbook.ts`
+- [x] **Stop baking external image URLs into the library.** `playbook.ts`
   42–43 seeds every book with two `i.ibb.co` pages and no opt-out →
   surprise third-party network request on construction, broken images if
   the host 404s, and no way to make an empty book. Make seed pages opt-in/

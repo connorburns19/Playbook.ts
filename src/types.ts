@@ -69,6 +69,15 @@ export interface Move {
   steps: MoveStep[];
 }
 
+/**
+ * Move assignments accepted by `Playbook.addPage`. Either:
+ *   - an array of entries in `POSITIONS` order (length 11; short arrays pad
+ *     with `'none'`, extras are ignored — with a dev warning), or
+ *   - a partial map keyed by position; any omitted position defaults to
+ *     `'none'`. The map form sidesteps the array-length footgun entirely.
+ */
+export type PageMoves = MoveName[] | Partial<Record<Position, MoveName>>;
+
 /** Plain serializable shape of a playbook page. */
 export interface PageData {
   image: string;

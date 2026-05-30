@@ -7,47 +7,47 @@ describe('PlayDisplayer', () => {
   });
 
   it('creates DOM elements for every position', () => {
-    new PlayDisplayer('large', 'Test1', 'root');
+    new PlayDisplayer({ size: 'large', name: 'Test1', parentId: 'root' });
     expect(document.querySelector('[data-position="lte"]')).toBeTruthy();
     expect(document.querySelector('[data-position="qb"]')).toBeTruthy();
     expect(document.querySelector('[data-position="rhb"]')).toBeTruthy();
   });
 
   it('defaults every position to "none"', () => {
-    const f = new PlayDisplayer('large', 'Test2', 'root');
+    const f = new PlayDisplayer({ size: 'large', name: 'Test2', parentId: 'root' });
     expect(f.getMove('lte')).toBe('none');
     expect(f.getMove('qb')).toBe('none');
     expect(f.getMove('rhb')).toBe('none');
   });
 
   it('setMove assigns a known move', () => {
-    const f = new PlayDisplayer('large', 'Test3', 'root');
+    const f = new PlayDisplayer({ size: 'large', name: 'Test3', parentId: 'root' });
     f.setMove('qb', 'pass-qb');
     expect(f.getMove('qb')).toBe('pass-qb');
   });
 
   it('setMove("none") clears assignment', () => {
-    const f = new PlayDisplayer('large', 'Test4', 'root');
+    const f = new PlayDisplayer({ size: 'large', name: 'Test4', parentId: 'root' });
     f.setMove('qb', 'pass-qb');
     f.setMove('qb', 'none');
     expect(f.getMove('qb')).toBe('none');
   });
 
   it('setFieldName updates the header text', () => {
-    const f = new PlayDisplayer('large', 'Test5', 'root');
+    const f = new PlayDisplayer({ size: 'large', name: 'Test5', parentId: 'root' });
     f.setFieldName('Hail Mary');
     expect(f.fieldTop.innerText).toBe('Hail Mary');
   });
 
   it('reset cancels all animations on player elements', () => {
-    const f = new PlayDisplayer('large', 'Test6', 'root');
+    const f = new PlayDisplayer({ size: 'large', name: 'Test6', parentId: 'root' });
     f.setMove('qb', 'pass-qb');
     // Calling reset on a non-animating field should not throw.
     expect(() => f.reset()).not.toThrow();
   });
 
   it('spawnSandbox appends a sandbox UI under the field', () => {
-    const f = new PlayDisplayer('large', 'Test7', 'root');
+    const f = new PlayDisplayer({ size: 'large', name: 'Test7', parentId: 'root' });
     const sandbox = f.spawnSandbox(false, 'root');
     expect(sandbox).toBeTruthy();
     expect(document.querySelector('.forms2')).toBeTruthy();
@@ -60,21 +60,36 @@ describe('Playbook', () => {
   });
 
   it('mounts a pages-container element', () => {
-    new Playbook('Test', null, false, 'root');
+    new Playbook({ title: 'Test', field: null, allowSave: false, parentId: 'root' });
     expect(document.querySelector('.pages-container')).toBeTruthy();
   });
 
-  it('starts with the two default pages (cover + instructions) visible', () => {
-    new Playbook('Test', null, false, 'root');
-    const pages = document.querySelectorAll('.page-content');
-    expect(pages.length).toBe(2);
+  it('starts empty by default (no seed pages, no surprise network requests)', () => {
+    new Playbook({ title: 'Test', field: null, allowSave: false, parentId: 'root' });
+    expect(document.querySelectorAll('.page-content').length).toBe(0);
+  });
+
+  it('seedPages renders static intro pages up front', () => {
+    new Playbook({
+      title: 'Test',
+      parentId: 'root',
+      seedPages: [
+        { image: 'cover.png', title: 'Cover' },
+        { image: 'intro.png', title: 'Instructions' },
+      ],
+    });
+    const imgs = document.querySelectorAll('.page-content img.page-image');
+    expect(imgs.length).toBe(2);
+    expect((imgs[0] as HTMLImageElement).getAttribute('src')).toBe('cover.png');
+    expect((imgs[0] as HTMLImageElement).alt).toBe('Cover');
   });
 
   it('addPage adds a new page (visible after a flip)', () => {
-    const book = new Playbook('Test', null, false, 'root');
+    const book = new Playbook({ title: 'Test', field: null, allowSave: false, parentId: 'root' });
     book.addPage('img.png', 'Title');
     book.addPage('img2.png', 'Title2');
-    // 4 pages total now (2 default + 2 new). After flipping once we should see pages 3 and 4.
+    // 2 pages total (empty book + 2 added). Both render at once in jsdom's
+    // two-page mode; the Forward click is a no-op here but kept for parity.
     const forwardBtn = document.querySelector('.right-button');
     (forwardBtn as HTMLButtonElement).click();
     const titles = Array.from(document.querySelectorAll('.page-title')).map(
@@ -85,8 +100,8 @@ describe('Playbook', () => {
   });
 
   it('Initialize Play button loads the move list onto the connected field', () => {
-    const field = new PlayDisplayer('large', 'Hooked', 'root');
-    const book = new Playbook('Hooked', field, false, 'root');
+    const field = new PlayDisplayer({ size: 'large', name: 'Hooked', parentId: 'root' });
+    const book = new Playbook({ title: 'Hooked', field: field, allowSave: false, parentId: 'root' });
     book.addPage('img.png', 'My Play', null, [
       'pass-qb', 'none', 'none', 'none', 'none', 'none', 'none', 'pass-qb',
       'none', 'none', 'none',
@@ -107,8 +122,8 @@ describe('Playbook', () => {
   });
 
   it('developer-added pages stay read-only even when allowSave is true', () => {
-    const field = new PlayDisplayer('large', 'DevPage', 'root');
-    const book = new Playbook('Test', field, true, 'root');
+    const field = new PlayDisplayer({ size: 'large', name: 'DevPage', parentId: 'root' });
+    const book = new Playbook({ title: 'Test', field: field, allowSave: true, parentId: 'root' });
     book.addPage('img.png', 'Preloaded', 'https://youtu.be/x', [
       'pass-qb', 'none', 'none', 'none', 'none', 'none', 'none',
       'pass-qb', 'none', 'none', 'none',
@@ -131,9 +146,9 @@ describe('Playbook', () => {
   });
 
   it('Save to Book button adds a page with current field state and no image', () => {
-    const field = new PlayDisplayer('large', 'TestSave', 'root');
+    const field = new PlayDisplayer({ size: 'large', name: 'TestSave', parentId: 'root' });
     field.setMove('qb', 'pass-qb');
-    const book = new Playbook('Test', field, true, 'root');
+    const book = new Playbook({ title: 'Test', field: field, allowSave: true, parentId: 'root' });
     field.spawnSandbox(true, 'root', book.createSaveButton());
 
     const saveBtn = Array.from(document.querySelectorAll('button')).find(
@@ -142,7 +157,8 @@ describe('Playbook', () => {
     expect(saveBtn).toBeTruthy();
     saveBtn!.click();
 
-    // Flip to the saved page (index 2, after the 2 default pages).
+    // The saved page is the book's only page (no seed pages); saving already
+    // flipped to it. The Forward click is a harmless no-op.
     const forwardBtn = document.querySelector('.right-button') as HTMLButtonElement;
     forwardBtn.click();
 
@@ -183,7 +199,7 @@ describe('PlayDisplayer playback state', () => {
   });
 
   it('starts in idle with Reset hidden; Play disabled until a move is set', () => {
-    const field = new PlayDisplayer('large', 'PB1', 'root');
+    const field = new PlayDisplayer({ size: 'large', name: 'PB1', parentId: 'root' });
     expect(field.playbackState).toBe('idle');
     const buttons = field.root.querySelectorAll('.pb-controls button');
     const playBtn = buttons[0] as HTMLButtonElement;
@@ -199,14 +215,14 @@ describe('PlayDisplayer playback state', () => {
   });
 
   it('play() returns a Promise<void> that resolves and leaves state in "played"', async () => {
-    const field = new PlayDisplayer('large', 'PB2', 'root');
+    const field = new PlayDisplayer({ size: 'large', name: 'PB2', parentId: 'root' });
     const result = await field.play();
     expect(result).toBeUndefined();
     expect(field.playbackState).toBe('played');
   });
 
   it('transitions idle -> playing -> played and notifies subscribers (immediate + transitions)', async () => {
-    const field = new PlayDisplayer('large', 'PB3', 'root');
+    const field = new PlayDisplayer({ size: 'large', name: 'PB3', parentId: 'root' });
     const states: string[] = [];
     field.onPlaybackStateChange((s) => states.push(s));
     // subscribe fires immediately with the current state
@@ -216,7 +232,7 @@ describe('PlayDisplayer playback state', () => {
   });
 
   it('Play button is disabled while playing, re-enabled after (with a move set)', async () => {
-    const field = new PlayDisplayer('large', 'PB4', 'root');
+    const field = new PlayDisplayer({ size: 'large', name: 'PB4', parentId: 'root' });
     field.setMove('qb', 'pass-qb'); // so Play isn't locked by the no-moves rule
     const playBtn = field.root.querySelector('.pb-controls button') as HTMLButtonElement;
     expect(playBtn.disabled).toBe(false);
@@ -230,7 +246,7 @@ describe('PlayDisplayer playback state', () => {
   });
 
   it('Reset becomes visible after play and hides again after reset()', async () => {
-    const field = new PlayDisplayer('large', 'PB5', 'root');
+    const field = new PlayDisplayer({ size: 'large', name: 'PB5', parentId: 'root' });
     const buttons = field.root.querySelectorAll('.pb-controls button');
     const resetBtn = buttons[1] as HTMLButtonElement;
     expect(resetBtn.style.visibility).toBe('hidden');
@@ -242,7 +258,7 @@ describe('PlayDisplayer playback state', () => {
   });
 
   it('sandbox dropdowns lock while playing, unlock after', async () => {
-    const field = new PlayDisplayer('large', 'PB6', 'root');
+    const field = new PlayDisplayer({ size: 'large', name: 'PB6', parentId: 'root' });
     field.spawnSandbox(false, 'root');
     const qbSelect = document.querySelector('select[data-position="qb"]') as HTMLSelectElement;
     expect(qbSelect.disabled).toBe(false);
@@ -256,8 +272,8 @@ describe('PlayDisplayer playback state', () => {
   });
 
   it('per-page Initialize Play button locks while playing, unlocks after', async () => {
-    const field = new PlayDisplayer('large', 'PB7', 'root');
-    const book = new Playbook('PB7Book', field, false, 'root');
+    const field = new PlayDisplayer({ size: 'large', name: 'PB7', parentId: 'root' });
+    const book = new Playbook({ title: 'PB7Book', field: field, allowSave: false, parentId: 'root' });
     book.addPage(
       null,
       'TestPlay',
@@ -281,7 +297,7 @@ describe('PlayDisplayer playback state', () => {
   });
 
   it('unsubscribe stops further state notifications', async () => {
-    const field = new PlayDisplayer('large', 'PB8', 'root');
+    const field = new PlayDisplayer({ size: 'large', name: 'PB8', parentId: 'root' });
     const states: string[] = [];
     const unsub = field.onPlaybackStateChange((s) => states.push(s));
     expect(states).toEqual(['idle']);
@@ -291,7 +307,7 @@ describe('PlayDisplayer playback state', () => {
   });
 
   it('concurrent play() calls return the same in-flight Promise', () => {
-    const field = new PlayDisplayer('large', 'PB9', 'root');
+    const field = new PlayDisplayer({ size: 'large', name: 'PB9', parentId: 'root' });
     field.setMove('qb', 'pass-qb');
     const p1 = field.play();
     const p2 = field.play();
@@ -299,7 +315,7 @@ describe('PlayDisplayer playback state', () => {
   });
 
   it('hasAnyMoves reflects whether any position has a move assigned', () => {
-    const field = new PlayDisplayer('large', 'PB10', 'root');
+    const field = new PlayDisplayer({ size: 'large', name: 'PB10', parentId: 'root' });
     expect(field.hasAnyMoves).toBe(false);
     field.setMove('qb', 'pass-qb');
     expect(field.hasAnyMoves).toBe(true);
@@ -308,7 +324,7 @@ describe('PlayDisplayer playback state', () => {
   });
 
   it('clearing the last move re-disables Play', () => {
-    const field = new PlayDisplayer('large', 'PB11', 'root');
+    const field = new PlayDisplayer({ size: 'large', name: 'PB11', parentId: 'root' });
     const playBtn = field.root.querySelector('.pb-controls button') as HTMLButtonElement;
     field.setMove('qb', 'pass-qb');
     expect(playBtn.disabled).toBe(false);
@@ -318,7 +334,7 @@ describe('PlayDisplayer playback state', () => {
   });
 
   it('onMovesChange fires immediately on subscribe, then on each setMove', () => {
-    const field = new PlayDisplayer('large', 'PB12', 'root');
+    const field = new PlayDisplayer({ size: 'large', name: 'PB12', parentId: 'root' });
     let count = 0;
     const unsub = field.onMovesChange(() => {
       count += 1;
@@ -340,7 +356,7 @@ describe('Reactive sandbox', () => {
   });
 
   it('changing a sandbox dropdown immediately updates field state (no Confirm step)', () => {
-    const field = new PlayDisplayer('large', 'ReactiveSandbox', 'root');
+    const field = new PlayDisplayer({ size: 'large', name: 'ReactiveSandbox', parentId: 'root' });
     field.spawnSandbox(false, 'root');
 
     const qbSelect = document.querySelector(
@@ -355,7 +371,7 @@ describe('Reactive sandbox', () => {
   });
 
   it('typing in the rename input live-updates the field header (no Set button)', () => {
-    const field = new PlayDisplayer('large', 'ReactiveName', 'root');
+    const field = new PlayDisplayer({ size: 'large', name: 'ReactiveName', parentId: 'root' });
     field.spawnSandbox(true, 'root');
 
     const nameInput = document.querySelector(
@@ -376,7 +392,7 @@ describe('pageOrientation', () => {
   });
 
   it('defaults to horizontal (data-orientation attribute reflects)', () => {
-    const book = new Playbook('Default', null, false, 'root');
+    const book = new Playbook({ title: 'Default', field: null, allowSave: false, parentId: 'root' });
     expect(book.pageOrientation).toBe('horizontal');
     expect(book.root.dataset.orientation).toBe('horizontal');
   });
@@ -413,8 +429,8 @@ describe('createConnectedLayout', () => {
 
   it('widgets mount into the layout slots end-to-end', () => {
     const layout = createConnectedLayout('root');
-    const field = new PlayDisplayer('large', 'X', layout.fieldSlot);
-    const book = new Playbook('X', field, true, layout.bookSlot);
+    const field = new PlayDisplayer({ size: 'large', name: 'X', parentId: layout.fieldSlot });
+    const book = new Playbook({ title: 'X', field: field, allowSave: true, parentId: layout.bookSlot });
     field.spawnSandbox(true, layout.sandboxSlot);
 
     // The book lives inside the book slot, the field inside the field slot, etc.

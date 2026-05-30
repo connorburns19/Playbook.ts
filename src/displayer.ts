@@ -83,22 +83,11 @@ export class PlayDisplayer {
   /** Most recent in-flight `play()` Promise, so re-entrancy returns the same one. */
   private currentPlayPromise: Promise<void> | null = null;
 
-  constructor(options: PlayDisplayerOptions);
-  constructor(size: FieldSize, name: string, parentId?: string | null);
-  constructor(
-    sizeOrOptions: FieldSize | PlayDisplayerOptions,
-    name?: string,
-    parentId?: string | null,
-  ) {
-    const opts: PlayDisplayerOptions =
-      typeof sizeOrOptions === 'string'
-        ? { size: sizeOrOptions, name: name ?? '', parentId: parentId ?? null }
-        : sizeOrOptions;
+  constructor(options: PlayDisplayerOptions) {
+    this.size = options.size;
+    this.name = options.name;
 
-    this.size = opts.size;
-    this.name = opts.name;
-
-    const sizeSuffix = opts.size === 'large' ? '-large' : '';
+    const sizeSuffix = options.size === 'large' ? '-large' : '';
 
     // Header
     this.fieldTop = createDiv(`field-top${sizeSuffix}`);
@@ -189,24 +178,24 @@ export class PlayDisplayer {
     // dimensions; scaled-to-fit by a ResizeObserver below (see styles.css
     // for the matching --pb-field-scale custom property).
     const stage = createDiv('pb-field-stage');
-    stage.dataset.size = opts.size;
+    stage.dataset.size = options.size;
     const stageInner = createDiv('pb-field-inner');
     stageInner.append(this.fieldTop, field);
     stage.append(stageInner);
 
     // Outer wrapper
     this.root = createDiv('pb-displayer');
-    this.root.dataset.size = opts.size;
+    this.root.dataset.size = options.size;
     this.root.setAttribute('role', 'region');
     this.root.setAttribute('aria-label', `Play displayer: ${this.name || 'unnamed'}`);
     this.root.append(stage, controls);
 
-    mountInto(this.root, opts.parentId);
+    mountInto(this.root, options.parentId);
 
     // Keep `--pb-field-scale` in sync with the stage's actual width so the
     // inner (at natural pixel dimensions) visually fills the available space.
     // Capped at 1 so we never upscale beyond natural size.
-    const naturalWidth = opts.size === 'large' ? 854 : 1220;
+    const naturalWidth = options.size === 'large' ? 854 : 1220;
     const applyScale = (): void => {
       const w = stage.clientWidth;
       if (w > 0) {
