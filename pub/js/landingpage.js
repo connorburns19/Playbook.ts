@@ -5,22 +5,22 @@ const book = new playBook("Sample", null, false, 'standalonebook');
 const book2 = new playBook("Sample", null, false, 'bookwithplays');
 
 book2.addPage(
-    "https://bestyouthfootballplays.com/wp-content/uploads/10-QB-Sneak-I-630x512.png",
+    "/images/hailmaryout.png",
     "QB Sneak",
     "https://youtu.be/qyqCTMirNWg?t=86"
   );
   book2.addPage(
-    "https://bestflagfootballplays.com/wp-content/uploads/Hail-Mary-Trips.jpg",
+    "/images/lbhandoff.png",
     "Hail Mary",
     "https://youtu.be/qyqCTMirNWg?t=289"
   );
   book2.addPage(
-    "https://www.dummies.com/wp-content/uploads/283523.image0.jpg",
+    "/images/hailmaryout.png",
     "Handoff",
     "https://youtu.be/qyqCTMirNWg?t=108"
   );
   book2.addPage(
-    "https://lh6.googleusercontent.com/-r311fMqwGdQ/TXHLNj4yb2I/AAAAAAAARAE/lVNOIrGbpPA/s1600/Boise+St.+Hook+and+Lateral+Play2.png",
+    "/images/lbhandoff.png",
     "Lateral",
     "https://youtu.be/qyqCTMirNWg?t=191"
   );
@@ -47,20 +47,20 @@ book2.addPage(
   const connectedbook = new playBook("Connected", field4, false, 'fieldsandboxplaybook');
 
   connectedbook.addPage(
-    "https://i.ibb.co/kSFmpZV/Hail-Mary-Out.png",
+    "/images/hailmaryout.png",
     "Hail Mary Out",
     "https://youtu.be/qyqCTMirNWg?t=289",
     ['straight-deep', 'mid-90-left', 'none', 'none', 'none', 'mid-90-right', 'straight-deep', 'pass-qb', 'none', 'hole-four-fb', 'none']
   );
 
   connectedbook.addPage(
-    "https://i.ibb.co/vsRPBKF/Left-Handoff-FB.png",
+    "/images/lbhandoff.png",
     "Left Handoff FB",
     null,
     ['none', 'none', 'none', 'none', 'none', 'none', 'none', 'hand-off-left-qb', 'hole-one-lhb', 'hole-two-fb', 'hole-five-rhb']
   );
   connectedbook.addPage(
-    "https://i.ibb.co/xhpXQV7/Criss-Cross.png",
+    "/images/hailmaryout.png",
     "CrissCross",
     null,
     ['hole-eight-rhb', 'none', 'none', 'none', 'none', 'none', 'hole-one-fb', 'pass-1b', 'none', 'hole-six-rhb', 'none']
@@ -72,20 +72,20 @@ book2.addPage(
   const connectedbook2 = new playBook("Connected", field5, true, 'fieldsandboxplaybooksave2');
 
   connectedbook2.addPage(
-    "https://i.ibb.co/kSFmpZV/Hail-Mary-Out.png",
+    "/images/hailmaryout.png",
     "Hail Mary Out",
     "https://youtu.be/qyqCTMirNWg?t=289",
     ['straight-deep', 'mid-90-left', 'none', 'none', 'none', 'mid-90-right', 'straight-deep', 'pass-qb', 'none', 'hole-four-fb', 'none']
   );
 
   connectedbook2.addPage(
-    "https://i.ibb.co/vsRPBKF/Left-Handoff-FB.png",
+    "/images/lbhandoff.png",
     "Left Handoff FB",
     null,
     ['none', 'none', 'none', 'none', 'none', 'none', 'none', 'hand-off-left-qb', 'hole-one-lhb', 'hole-two-fb', 'hole-five-rhb']
   );
   connectedbook2.addPage(
-    "https://i.ibb.co/xhpXQV7/Criss-Cross.png",
+    "/images/hailmaryout.png",
     "CrissCross",
     null,
     ['hole-eight-rhb', 'none', 'none', 'none', 'none', 'none', 'hole-one-fb', 'pass-1b', 'none', 'hole-six-rhb', 'none']
@@ -99,20 +99,20 @@ book2.addPage(
   connectedbook3.allowUserCreatePlays('fieldsandboxplaybooksave3')
 
   connectedbook3.addPage(
-    "https://i.ibb.co/kSFmpZV/Hail-Mary-Out.png",
+    "/images/hailmaryout.png",
     "Hail Mary Out",
     "https://youtu.be/qyqCTMirNWg?t=289",
     ['straight-deep', 'mid-90-left', 'none', 'none', 'none', 'mid-90-right', 'straight-deep', 'pass-qb', 'none', 'hole-four-fb', 'none']
   );
 
   connectedbook3.addPage(
-    "https://i.ibb.co/vsRPBKF/Left-Handoff-FB.png",
+    "/images/lbhandoff.png",
     "Left Handoff FB",
     null,
     ['none', 'none', 'none', 'none', 'none', 'none', 'none', 'hand-off-left-qb', 'hole-one-lhb', 'hole-two-fb', 'hole-five-rhb']
   );
   connectedbook3.addPage(
-    "https://i.ibb.co/xhpXQV7/Criss-Cross.png",
+    "/images/hailmaryout.png",
     "CrissCross",
     null,
     ['hole-eight-rhb', 'none', 'none', 'none', 'none', 'none', 'hole-one-fb', 'pass-1b', 'none', 'hole-six-rhb', 'none']

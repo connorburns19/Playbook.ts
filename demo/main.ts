@@ -22,22 +22,22 @@ new Playbook({ title: 'Sample', parentId: 'standalone-book', seedPages: INTRO_PA
 // 2. Book with plays
 const bookWithPlays = new Playbook({ title: 'Sample', parentId: 'book-with-plays', seedPages: INTRO_PAGES });
 bookWithPlays.addPage(
-  'https://bestyouthfootballplays.com/wp-content/uploads/10-QB-Sneak-I-630x512.png',
+  '/images/hailmaryout.png',
   'QB Sneak',
   'https://youtu.be/qyqCTMirNWg?t=86',
 );
 bookWithPlays.addPage(
-  'https://bestflagfootballplays.com/wp-content/uploads/Hail-Mary-Trips.jpg',
+  '/images/lbhandoff.png',
   'Hail Mary',
   'https://youtu.be/qyqCTMirNWg?t=289',
 );
 bookWithPlays.addPage(
-  'https://www.dummies.com/wp-content/uploads/283523.image0.jpg',
+  '/images/hailmaryout.png',
   'Handoff',
   'https://youtu.be/qyqCTMirNWg?t=108',
 );
 bookWithPlays.addPage(
-  'https://lh6.googleusercontent.com/-r311fMqwGdQ/TXHLNj4yb2I/AAAAAAAARAE/lVNOIrGbpPA/s1600/Boise+St.+Hook+and+Lateral+Play2.png',
+  '/images/lbhandoff.png',
   'Lateral',
   'https://youtu.be/qyqCTMirNWg?t=191',
 );
@@ -61,19 +61,19 @@ fieldWithSandbox.spawnSandbox(false, 'field-sandbox');
 const fieldConnected = new PlayDisplayer({ size: 'large', name: 'Connected', parentId: 'connected-book' });
 const connectedBook = new Playbook({ title: 'Connected', field: fieldConnected, allowSave: false, parentId: 'connected-book', seedPages: INTRO_PAGES });
 connectedBook.addPage(
-  'https://i.ibb.co/kSFmpZV/Hail-Mary-Out.png',
+  '/images/hailmaryout.png',
   'Hail Mary Out',
   'https://youtu.be/qyqCTMirNWg?t=289',
   ['straight-deep', 'mid-90-left', 'none', 'none', 'none', 'mid-90-right', 'straight-deep', 'pass-qb', 'none', 'hole-four-fb', 'none'],
 );
 connectedBook.addPage(
-  'https://i.ibb.co/vsRPBKF/Left-Handoff-FB.png',
+  '/images/lbhandoff.png',
   'Left Handoff FB',
   null,
   ['none', 'none', 'none', 'none', 'none', 'none', 'none', 'hand-off-left-qb', 'hole-one-lhb', 'hole-two-fb', 'hole-five-rhb'],
 );
 connectedBook.addPage(
-  'https://i.ibb.co/xhpXQV7/Criss-Cross.png',
+  '/images/hailmaryout.png',
   'CrissCross',
   null,
   // V1 had 'pass-1b' here (a typo for 'pass-qb'). Fixed in V2.
@@ -101,13 +101,13 @@ const sandboxSaveBook = new Playbook({
 });
 fieldSandboxSave.spawnSandbox(true, layout.sandboxSlot, sandboxSaveBook.createSaveButton());
 sandboxSaveBook.addPage(
-  'https://i.ibb.co/kSFmpZV/Hail-Mary-Out.png',
+  '/images/hailmaryout.png',
   'Hail Mary Out',
   'https://youtu.be/qyqCTMirNWg?t=289',
   ['straight-deep', 'mid-90-left', 'none', 'none', 'none', 'mid-90-right', 'straight-deep', 'pass-qb', 'none', 'hole-four-fb', 'none'],
 );
 sandboxSaveBook.addPage(
-  'https://i.ibb.co/vsRPBKF/Left-Handoff-FB.png',
+  '/images/lbhandoff.png',
   'Left Handoff FB',
   null,
   ['none', 'none', 'none', 'none', 'none', 'none', 'none', 'hand-off-left-qb', 'hole-one-lhb', 'hole-two-fb', 'hole-five-rhb'],

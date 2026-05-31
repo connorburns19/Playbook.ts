@@ -39,13 +39,13 @@ const heroBook = new Playbook({
 });
 heroField.spawnSandbox(true, heroLayout.sandboxSlot, heroBook.createSaveButton());
 heroBook.addPage(
-  'https://i.ibb.co/kSFmpZV/Hail-Mary-Out.png',
+  '/images/hailmaryout.png',
   'Hail Mary Out',
   'https://youtu.be/qyqCTMirNWg?t=289',
   { lte: 'straight-deep', lt: 'mid-90-left', rt: 'mid-90-right', rte: 'straight-deep', qb: 'pass-qb', fb: 'hole-four-fb' },
 );
 heroBook.addPage(
-  'https://i.ibb.co/vsRPBKF/Left-Handoff-FB.png',
+  '/images/lbhandoff.png',
   'Left Handoff FB',
   null,
   { qb: 'hand-off-left-qb', lhb: 'hole-one-lhb', fb: 'hole-two-fb', rhb: 'hole-five-rhb' },
@@ -80,13 +80,13 @@ const demoBook = new Playbook({
   parentId: 'demo-bookfield-book',
 });
 demoBook.addPage(
-  'https://i.ibb.co/kSFmpZV/Hail-Mary-Out.png',
+  '/images/hailmaryout.png',
   'Hail Mary Out',
   null,
   { lte: 'straight-deep', lt: 'mid-90-left', rt: 'mid-90-right', rte: 'straight-deep', qb: 'pass-qb', fb: 'hole-four-fb' },
 );
 demoBook.addPage(
-  'https://i.ibb.co/vsRPBKF/Left-Handoff-FB.png',
+  '/images/lbhandoff.png',
   'Left Handoff FB',
   null,
   { qb: 'hand-off-left-qb', lhb: 'hole-one-lhb', fb: 'hole-two-fb', rhb: 'hole-five-rhb' },
@@ -105,13 +105,13 @@ const cloneBook = new Playbook({
 });
 cloneField.spawnSandbox(true, cloneLayout.sandboxSlot, cloneBook.createSaveButton());
 cloneBook.addPage(
-  'https://i.ibb.co/kSFmpZV/Hail-Mary-Out.png',
+  '/images/hailmaryout.png',
   'Hail Mary Out',
   'https://youtu.be/qyqCTMirNWg?t=289',
   { lte: 'straight-deep', lt: 'mid-90-left', rt: 'mid-90-right', rte: 'straight-deep', qb: 'pass-qb', fb: 'hole-four-fb' },
 );
 cloneBook.addPage(
-  'https://i.ibb.co/vsRPBKF/Left-Handoff-FB.png',
+  '/images/lbhandoff.png',
   'Left Handoff FB',
   null,
   { qb: 'hand-off-left-qb', lhb: 'hole-one-lhb', fb: 'hole-two-fb', rhb: 'hole-five-rhb' },
