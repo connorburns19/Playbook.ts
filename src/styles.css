@@ -138,6 +138,48 @@
   }
 }
 
+/* ---------- Forced dark (opt-in) ----------
+ * Pin the dark palette regardless of OS preference by putting
+ * `data-pb-theme="dark"` on any ancestor — e.g. <html data-pb-theme="dark">
+ * or a single wrapper <div> around the widgets. The portfolio demo route
+ * ships dark-only for now and uses this; V2's own prototype sets it on
+ * <html> too so `npm run dev` previews exactly what deploys.
+ *
+ * Values mirror the `prefers-color-scheme: dark` block above — keep the
+ * two in sync if the dark palette changes. `color-scheme: dark` is set
+ * here (the media query doesn't need it: a dark OS already flips native
+ * controls) so forced dark also themes the sandbox <select> dropdowns and
+ * scrollbars on a light-OS machine. */
+[data-pb-theme="dark"] {
+  color-scheme: dark;
+
+  --pb-bg: #0d0d0e;
+  --pb-surface: #18181b;
+  --pb-surface-2: #1f1f23;
+  --pb-border: #2a2a2e;
+
+  --pb-text: #f5f4f0;
+  --pb-text-muted: #a1a1aa;
+
+  --pb-accent: #5b8def;
+  --pb-accent-hover: #7ba3f4;
+  --pb-accent-fg: #0a0a0b;
+  --pb-success: #3a8a5b;
+  --pb-success-hover: #4a9c6b;
+
+  --pb-field-green: #235e34;
+  --pb-field-stripe: rgba(0, 0, 0, 0.18);
+  --pb-field-line: rgba(255, 255, 255, 0.18);
+  --pb-field-scrimmage: rgba(255, 255, 255, 0.75);
+
+  --pb-player-bg: #050608;
+  --pb-player-ring: rgba(0, 0, 0, 0.85);
+
+  --pb-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --pb-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.35);
+  --pb-shadow-lg: 0 16px 32px rgba(0, 0, 0, 0.55), 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
 /* =============================================================
  * Connected layout (opt-in via `createConnectedLayout`)
  *

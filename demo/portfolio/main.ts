@@ -19,7 +19,6 @@ import '../../src/styles.css';
 import './styles.css';
 import hljs from 'highlight.js/lib/core';
 import typescript from 'highlight.js/lib/languages/typescript';
-import 'highlight.js/styles/github.css';
 import 'highlight.js/styles/github-dark.css';
 
 hljs.registerLanguage('typescript', typescript);
