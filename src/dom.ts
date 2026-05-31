@@ -18,13 +18,6 @@ export function createButton(className: string, label: string): HTMLButtonElemen
   return btn;
 }
 
-export function createInput(type: string, placeholder: string): HTMLInputElement {
-  const input = document.createElement('input');
-  input.type = type;
-  input.placeholder = placeholder;
-  return input;
-}
-
 export function createOption(value: string, label: string = value): HTMLOptionElement {
   const opt = document.createElement('option');
   opt.value = value;

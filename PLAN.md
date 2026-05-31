@@ -12,7 +12,7 @@ This file is the **single source of truth for where the project is going**. Upda
 - [x] **Phase 2** — Visual modernization (CSS, responsive) ✅
 - [x] **Phase 3** — UX overhaul (reactive sandbox, unified save, per-page edit, connected layout) ✅
 - [x] **Phase 4** — Functional polish & interaction UX (layout polish, save flow rework, animation guards) ✅
-- [ ] **Phase 4.5** — Library hardening & API cleanup (silent-failure fixes, API-shape settle, teardown/dispose) — *second refactor pass*
+- [x] **Phase 4.5** — Library hardening & API cleanup (silent-failure fixes, API-shape settle, teardown/dispose) — *second refactor pass* ✅
 - [ ] **Phase 5** — Playground MVP (editor + iframe preview)
 - [ ] **Phase 6** — Playground polish (snippets, shareable URLs)
 - [ ] **Phase 7** — Extension feature (JSON export/import)
@@ -332,27 +332,34 @@ read and may drift as code changes — treat them as starting points.
     `setMove` notifies nobody), field-survives-book-destroy, and a full
     mount→destroy cycle asserting both observers disconnect.
 
-### Tier 4 — Hygiene / polish
+### Tier 4 — Hygiene / polish ✅
 
-- [ ] **Delete dead code.** `createInput` in `dom.ts` (21–26) is never
-  called (grep-confirmed). Player `el.id` likely vestigial (see Tier 1).
-- [ ] **Export consistency.** `POSITION_FULL_NAMES` is used internally but
-  not re-exported from `index.ts`, while `POSITION_LABELS` is — pick a line
-  and hold it.
-- [ ] **Extract `buildPage`** (`playbook.ts` 187–349) — a 160-line
-  closure-component with mutable closure state (`currentImage`,
-  `videoEditorOpen`) + manual `replaceChildren` rebuilds. The one
-  genuinely hard-to-follow spot; a small `Page` module/class would
-  localize it.
-- [ ] **De-magic the numbers.** Natural field widths `854`/`1220`
-  (displayer 194) live apart from the dimension profiles in `moves.ts`;
-  `img 400×300` is hardcoded twice (playbook 213, 432). Hoist to named
-  constants / source from one place.
-- [ ] **Tighten `as` casts.** `select.value as MoveName` (displayer 410),
-  `reader.result as string` (playbook 335) — narrow where cheap.
-- [ ] **Naming overlap.** Imported `getMove(name, size)` (moves.ts) vs
-  method `PlayDisplayer.getMove(pos)` — same name, different meaning.
-  Consider renaming the method (e.g. `getAssignedMove`).
+- [x] **Delete dead code.** Removed unused `createInput` from `dom.ts`
+  (grep-confirmed dead). Player `el.id` was already replaced by
+  `dataset.position` in Tier 1 — no id remains.
+- [x] **Export consistency.** `POSITION_FULL_NAMES` now re-exported from
+  `index.ts` alongside `POSITION_LABELS`.
+- [x] **Extract `buildPage`** → new `src/page.ts`. The 160-line closure-
+  component became a `Page` class: the three closure variables
+  (`currentImage`, `currentVideoLink`, `videoEditorOpen`) are now fields and
+  the two in-place rebuilders (`renderImage` / `renderVideoSection`) are
+  methods. `buildDefaultPage` (seed pages) moved alongside it. `Playbook`
+  keeps a thin `buildPage` wrapper that injects the connected field +
+  `registerFieldSub` so teardown still releases the subscription.
+- [x] **De-magic the numbers.** Natural field widths `854`/`1220` →
+  `FIELD_NATURAL_WIDTH` in `moves.ts` (co-located with the other per-size
+  dimensions); `img 400×300` → `PAGE_IMAGE_WIDTH`/`PAGE_IMAGE_HEIGHT` in
+  `page.ts`, sourced once by both image renderers.
+- [x] **Tighten `as` casts.** `reader.result as string` → `typeof` guard
+  (a surprise `ArrayBuffer` can't reach the `<img src>` now). Left
+  `select.value as MoveName` as a documented DOM-boundary cast — the
+  `<select>` is populated only from the catalog + `'none'`, and `setMove`
+  already validates + warns on unknown names downstream, so a runtime
+  membership check there would just duplicate that.
+- [x] **Naming overlap.** Renamed `PlayDisplayer.getMove(pos)` →
+  `getAssignedMove(pos)` so it no longer shadows the module-level
+  `getMove(name, size)` catalog lookup. Updated the one internal caller +
+  tests. (Breaking, but V2 is unpublished.)
 
 **Explicitly NOT smells (don't "fix"):** `moves.ts`, `animation.ts`,
 `types.ts`, `index.ts` are clean. String-literal unions (`MoveName` /
@@ -619,6 +626,45 @@ tests install a tracking stub on `globalThis` in `beforeEach` (removed in
 mount→destroy cycle disconnects exactly the observers it created (2: field
 stage + layout main column). Bundle after Tier 1–3: **9.25 KB gzipped**
 (still under the 10 KB budget).
+
+### 2026-05-30 — Phase 4.5 Tier 4 (hygiene / polish) — Phase 4.5 complete
+
+Closed out the hardening pass with the opportunistic cleanups. No behavior
+change — pure refactor + a couple of dev-ergonomics fixes.
+
+**`buildPage` → `src/page.ts` `Page` class.** The one genuinely
+hard-to-follow spot. Closure state (`currentImage`, `currentVideoLink`,
+`videoEditorOpen`) became fields; `renderImage` / `renderVideoSection`
+became methods that read those fields instead of capturing locals. The book
+stays the owner of navigation + the connected field; `Page` only renders
+itself and (when wired) loads its moves back via Initialize Play. The
+field-sub capture still flows through `registerFieldSub` so `Playbook.destroy()`
+releases it exactly as before. `Playbook.buildPage` is now a ~10-line wrapper
+around `new Page({...}).element`, so the two call sites (`addPage`,
+`saveFieldStateAsPage`) didn't change.
+
+**`getMove` overload retired.** `PlayDisplayer.getMove(pos)` (assigned move
+for a position) shared a name with the imported `getMove(name, size)`
+(catalog lookup) — same identifier, different meaning, inside the same file.
+Renamed the method to `getAssignedMove`. Only one internal caller
+(`snapshotFieldMoves`) + the tests referenced it; the V2 demo doesn't.
+
+**Magic numbers hoisted.** Field natural widths now `FIELD_NATURAL_WIDTH`
+in `moves.ts` (all per-size dimensions in one file). Image `400×300` now
+`PAGE_IMAGE_WIDTH`/`PAGE_IMAGE_HEIGHT` in `page.ts`, used by both the live
+page renderer and the seed-page builder.
+
+**Casts:** narrowed `reader.result` with a `typeof` guard; deliberately
+*kept* `select.value as MoveName` — it's a real DOM boundary, the options
+are catalog-only, and `setMove` already warns on unknown names, so a guard
+there would be redundant.
+
+Green across the board: typecheck clean, **49/49 tests** (was 49 — no test
+count change; the rename touched existing assertions, the extraction is
+covered by the existing page/save tests), build clean, bundle **9.58 KB
+gzipped** (up 0.33 from Tier 3's 9.25 — the `Page` class adds a little
+structure; still under the 10 KB budget). Phase 4.5 done; next is Phase 5
+(Playground MVP).
 
 ### 2026-05-30 — Full `src/` read-through → Phase 4.5
 

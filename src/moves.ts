@@ -34,6 +34,17 @@ interface SizeProfile {
   fbHoles: ReadonlyArray<readonly ['left' | 'right', number]>;
 }
 
+/**
+ * Natural (unscaled) pixel width of the field stage per size. The field is
+ * rendered at these dimensions and scaled to fit its container (see
+ * `--pb-field-scale` in `displayer.ts` / `styles.css`). Kept here alongside the
+ * per-size move offsets so all size-dependent dimensions live in one file.
+ */
+export const FIELD_NATURAL_WIDTH: Record<FieldSize, number> = {
+  'large': 854,
+  'xx-large': 1220,
+};
+
 const PROFILES: Record<FieldSize, SizeProfile> = {
   'xx-large': {
     deepY: 500, midY: 300, shortY: 200, holeY: 200,

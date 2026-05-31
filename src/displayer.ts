@@ -12,7 +12,7 @@
 
 import { animateInSequence, resetAnimation } from './animation.js';
 import { createDiv, createOption, mountInto } from './dom.js';
-import { getMove, getMoveCatalog } from './moves.js';
+import { FIELD_NATURAL_WIDTH, getMove, getMoveCatalog } from './moves.js';
 import type { FieldSize, MoveName, MoveStep, Position } from './types.js';
 import { POSITIONS, POSITION_LABELS, POSITION_FULL_NAMES } from './types.js';
 
@@ -209,7 +209,7 @@ export class PlayDisplayer {
     // Keep `--pb-field-scale` in sync with the stage's actual width so the
     // inner (at natural pixel dimensions) visually fills the available space.
     // Capped at 1 so we never upscale beyond natural size.
-    const naturalWidth = options.size === 'large' ? 854 : 1220;
+    const naturalWidth = FIELD_NATURAL_WIDTH[options.size];
     const applyScale = (): void => {
       const w = stage.clientWidth;
       if (w > 0) {
@@ -290,8 +290,12 @@ export class PlayDisplayer {
     };
   }
 
-  /** Get the current move name assigned to a position. */
-  getMove(position: Position): MoveName {
+  /**
+   * Get the current move name assigned to a position. Named `getAssignedMove`
+   * (not `getMove`) to avoid colliding with the module-level `getMove(name,
+   * size)` catalog lookup, which means something different.
+   */
+  getAssignedMove(position: Position): MoveName {
     return this.players[position].moveName;
   }
 

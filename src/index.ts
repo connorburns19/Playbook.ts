@@ -14,6 +14,7 @@ export type { PlayDisplayerOptions, PlaybackState } from './displayer.js';
 export {
   POSITIONS,
   POSITION_LABELS,
+  POSITION_FULL_NAMES,
 } from './types.js';
 export type {
   Position,

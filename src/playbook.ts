@@ -15,6 +15,7 @@
  */
 
 import { createButton, createDiv, mountInto } from './dom.js';
+import { Page, buildDefaultPage } from './page.js';
 import type { MoveName, PageData, PageMoves } from './types.js';
 import { POSITIONS } from './types.js';
 import type { PlayDisplayer } from './displayer.js';
@@ -207,6 +208,10 @@ export class Playbook {
    * developer-added plays (editable = false) and user-saved plays (editable =
    * true). `editable` gates the Add/Replace image button and the Add/Edit
    * video link button independently of the book-level `allowSave` flag.
+   *
+   * The rendering lives in `Page` (see `page.ts`); this wires it to the book's
+   * connected field and captures the field subscription so `destroy()` can
+   * release it.
    */
   private buildPage(
     initialImage: string | null,
@@ -215,169 +220,20 @@ export class Playbook {
     moves: MoveName[] | null,
     editable: boolean,
   ): HTMLDivElement {
-    const page = createDiv('page-content');
-
-    // Mutable per-page state — closed over by the edit handlers below.
-    let currentImage = initialImage;
-    let currentVideoLink = initialVideoLink;
-    let videoEditorOpen = false;
-
-    // --- Image section ---
-    const imageSection = createDiv('page-image-section');
-    page.append(imageSection);
-
-    const renderImage = (): void => {
-      imageSection.replaceChildren();
-      if (currentImage) {
-        const img = document.createElement('img');
-        img.className = 'page-image';
-        img.src = currentImage;
-        img.alt = title;
-        img.width = 400;
-        img.height = 300;
-        img.loading = 'lazy';
-        img.decoding = 'async';
-        imageSection.append(img);
-      } else {
-        const placeholder = createDiv('page-image-placeholder');
-        placeholder.textContent = editable ? 'No image yet' : 'No image';
-        imageSection.append(placeholder);
-      }
-    };
-
-    renderImage();
-
-    // --- Title ---
-    const pageTitle = createDiv('page-title');
-    pageTitle.innerText = title;
-    page.append(pageTitle);
-
-    // --- Actions row ---
-    const actions = createDiv('page-actions');
-    page.append(actions);
-
-    // Initialize Play (when there's a connected field and move data)
-    if (this.field && moves) {
-      const initBtn = createButton('link-button', 'Initialize Play');
-      initBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        const f = this.field;
-        if (!f) return;
-        f.setFieldName(title);
-        for (let i = 0; i < POSITIONS.length; i++) {
-          const pos = POSITIONS[i]!;
-          const moveName = moves[i] ?? 'none';
-          f.setMove(pos, moveName);
-        }
-      });
-      actions.append(initBtn);
-      // Lock during animation — a wholesale state swap mid-flight would
-      // visibly snap players around. We hold the unsubscribe handle so
-      // `destroy()` can release it (the field outlives the book in shared
-      // setups, so a dangling sub would pin every detached page).
-      this.fieldSubs.push(
-        this.field.onPlaybackStateChange((state) => {
-          initBtn.disabled = state === 'playing';
-        }),
-      );
-    }
-
-    // Video section — link / "+ Add video" / inline URL editor
-    const videoSection = createDiv('page-video-section');
-    actions.append(videoSection);
-
-    const renderVideoSection = (): void => {
-      videoSection.replaceChildren();
-
-      if (videoEditorOpen) {
-        const editor = createDiv('page-video-editor');
-
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.placeholder = 'YouTube URL';
-        input.value = currentVideoLink ?? '';
-        input.setAttribute('aria-label', 'Video URL');
-
-        const save = createButton('page-edit-btn-primary', 'Save');
-        save.addEventListener('click', () => {
-          currentVideoLink = input.value.trim() || null;
-          videoEditorOpen = false;
-          renderVideoSection();
-        });
-
-        const cancel = createButton('page-edit-btn', 'Cancel');
-        cancel.addEventListener('click', () => {
-          videoEditorOpen = false;
-          renderVideoSection();
-        });
-
-        editor.append(input, save, cancel);
-        videoSection.append(editor);
-        queueMicrotask(() => input.focus());
-        return;
-      }
-
-      if (currentVideoLink) {
-        const link = document.createElement('a');
-        link.href = currentVideoLink;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        link.className = 'link-button';
-        link.textContent = 'Open Video';
-        videoSection.append(link);
-      }
-
-      if (editable) {
-        const label = currentVideoLink ? 'Edit link' : '+ Add video link';
-        const editBtn = createButton('page-edit-btn', label);
-        editBtn.addEventListener('click', () => {
-          videoEditorOpen = true;
-          renderVideoSection();
-        });
-        videoSection.append(editBtn);
-      }
-    };
-
-    renderVideoSection();
-
-    // Image upload affordance (editable pages only) — hidden file input
-    // triggered by a visible button, FileReader → data: URL so no backend needed.
-    if (editable) {
-      const imageEditBtn = createButton(
-        'page-edit-btn',
-        currentImage ? 'Replace image' : '+ Add image',
-      );
-
-      const fileInput = document.createElement('input');
-      fileInput.type = 'file';
-      fileInput.accept = 'image/*';
-      fileInput.setAttribute('aria-label', 'Upload play image');
-      fileInput.hidden = true;
-
-      fileInput.addEventListener('change', () => {
-        const file = fileInput.files?.[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (): void => {
-          currentImage = reader.result as string;
-          renderImage();
-          imageEditBtn.textContent = 'Replace image';
-        };
-        reader.readAsDataURL(file);
-        // Reset so re-picking the same file still fires change.
-        fileInput.value = '';
-      });
-
-      imageEditBtn.addEventListener('click', () => fileInput.click());
-      actions.append(imageEditBtn, fileInput);
-    }
-
-    return page;
+    return new Page({
+      image: initialImage,
+      title,
+      videoLink: initialVideoLink,
+      moves,
+      editable,
+      field: this.field,
+      registerFieldSub: (unsub) => this.fieldSubs.push(unsub),
+    }).element;
   }
 
   private snapshotFieldMoves(): MoveName[] {
     if (!this.field) return POSITIONS.map(() => 'none');
-    return POSITIONS.map((pos) => this.field!.getMove(pos));
+    return POSITIONS.map((pos) => this.field!.getAssignedMove(pos));
   }
 
   private saveFieldStateAsPage(): void {
@@ -466,18 +322,4 @@ function normalizePageMoves(moves: PageMoves | null | undefined): MoveName[] | n
     return POSITIONS.map((_pos, i) => moves[i] ?? 'none');
   }
   return POSITIONS.map((pos) => moves[pos] ?? 'none');
-}
-
-function buildDefaultPage(imageUrl: string, altText: string): HTMLDivElement {
-  const page = createDiv('page-content');
-  const img = document.createElement('img');
-  img.className = 'page-image';
-  img.src = imageUrl;
-  img.alt = altText;
-  img.width = 400;
-  img.height = 300;
-  img.loading = 'lazy';
-  img.decoding = 'async';
-  page.append(img);
-  return page;
 }

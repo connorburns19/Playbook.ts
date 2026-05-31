@@ -15,22 +15,22 @@ describe('PlayDisplayer', () => {
 
   it('defaults every position to "none"', () => {
     const f = new PlayDisplayer({ size: 'large', name: 'Test2', parentId: 'root' });
-    expect(f.getMove('lte')).toBe('none');
-    expect(f.getMove('qb')).toBe('none');
-    expect(f.getMove('rhb')).toBe('none');
+    expect(f.getAssignedMove('lte')).toBe('none');
+    expect(f.getAssignedMove('qb')).toBe('none');
+    expect(f.getAssignedMove('rhb')).toBe('none');
   });
 
   it('setMove assigns a known move', () => {
     const f = new PlayDisplayer({ size: 'large', name: 'Test3', parentId: 'root' });
     f.setMove('qb', 'pass-qb');
-    expect(f.getMove('qb')).toBe('pass-qb');
+    expect(f.getAssignedMove('qb')).toBe('pass-qb');
   });
 
   it('setMove("none") clears assignment', () => {
     const f = new PlayDisplayer({ size: 'large', name: 'Test4', parentId: 'root' });
     f.setMove('qb', 'pass-qb');
     f.setMove('qb', 'none');
-    expect(f.getMove('qb')).toBe('none');
+    expect(f.getAssignedMove('qb')).toBe('none');
   });
 
   it('setFieldName updates the header text', () => {
@@ -116,8 +116,8 @@ describe('Playbook', () => {
     initBtn?.click();
     // 'pass-qb' on lte isn't valid for that position semantically, but setMove
     // doesn't enforce position-specific rules — it should still get assigned.
-    expect(field.getMove('lte')).toBe('pass-qb');
-    expect(field.getMove('qb')).toBe('pass-qb');
+    expect(field.getAssignedMove('lte')).toBe('pass-qb');
+    expect(field.getAssignedMove('qb')).toBe('pass-qb');
     expect(field.fieldTop.innerText).toBe('My Play');
   });
 
@@ -367,7 +367,7 @@ describe('Reactive sandbox', () => {
     qbSelect.value = 'pass-qb';
     qbSelect.dispatchEvent(new Event('change'));
 
-    expect(field.getMove('qb')).toBe('pass-qb');
+    expect(field.getAssignedMove('qb')).toBe('pass-qb');
   });
 
   it('typing in the rename input live-updates the field header (no Set button)', () => {
@@ -491,7 +491,7 @@ describe('destroy / lifecycle', () => {
     expect(document.querySelector('.pages-container')).toBeNull();
     expect(document.querySelector('.pb-displayer')).toBeTruthy();
     expect(() => field.setMove('qb', 'pass-qb')).not.toThrow();
-    expect(field.getMove('qb')).toBe('pass-qb');
+    expect(field.getAssignedMove('qb')).toBe('pass-qb');
   });
 
   it('Playbook.destroy is idempotent', () => {
