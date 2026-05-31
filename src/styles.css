@@ -836,13 +836,19 @@
   margin: 5px;
   position: relative;
   font-family: var(--pb-font);
-  font-size: 0.6875rem;
+  font-size: 0.9375rem;
   font-weight: 600;
   letter-spacing: 0.04em;
+  text-indent: 0.04em;
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow: 0 0 0 1.5px var(--pb-player-ring), 0 2px 4px rgba(0, 0, 0, 0.25);
+}
+
+.player span,
+.player-large span {
+  transform: translateY(-1px);
 }
 
 /* ---------- large field ---------- */
@@ -906,9 +912,10 @@
   margin: 5px;
   position: relative;
   font-family: var(--pb-font);
-  font-size: 0.5625rem;
+  font-size: 0.8125rem;
   font-weight: 600;
   letter-spacing: 0.03em;
+  text-indent: 0.03em;
   display: flex;
   align-items: center;
   justify-content: center;

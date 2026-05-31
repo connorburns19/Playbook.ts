@@ -123,8 +123,9 @@ export class PlayDisplayer {
       // collides across instances. A data attribute carries no uniqueness
       // contract, so it's safe to repeat.)
       el.dataset.position = pos;
-      // Plain label — CSS handles centering via flex.
-      el.textContent = POSITION_LABELS[pos];
+      const labelSpan = document.createElement('span');
+      labelSpan.textContent = POSITION_LABELS[pos];
+      el.appendChild(labelSpan);
       // a11y: full position name for screen readers (avoids the SR reading "LTE" as letters).
       el.setAttribute('aria-label', POSITION_FULL_NAMES[pos]);
       el.setAttribute('role', 'img');
