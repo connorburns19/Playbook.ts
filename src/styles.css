@@ -479,11 +479,6 @@
   width: 100%;
 }
 
-@keyframes pb-image-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
 .page-image {
   width: 100%;
   aspect-ratio: 4 / 3;
@@ -492,13 +487,6 @@
   background: var(--pb-surface-2);
   display: block;
   color: transparent;
-  animation: pb-image-in 0.3s ease;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .page-image {
-    animation-duration: 0.01ms;
-  }
 }
 
 .page-image-placeholder {
