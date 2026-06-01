@@ -486,6 +486,7 @@
   border-radius: var(--pb-radius-sm);
   background: var(--pb-surface-2);
   display: block;
+  color: transparent;
 }
 
 .page-image-placeholder {
