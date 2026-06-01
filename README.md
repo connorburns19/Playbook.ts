@@ -19,7 +19,7 @@ V2 keeps the original's two good ideas — a flippable play **book** and an anim
 **field** — and rebuilds everything underneath them. The jQuery dependency is gone, replaced by the
 native Web Animations API. The 1,330-line IIFE became a handful of strict-mode TypeScript modules.
 The two duplicated move catalogs collapsed into one parameterized by field size. The palette became
-a responsive `--pb-*` design-token system with dark mode, and the API grew proper `destroy()`
+a responsive `--pb-*` design-token system, and the API grew proper `destroy()`
 teardown so it survives React's StrictMode remounting.
 
 Built AI-assisted — Claude Code as the pair programmer, me as the architect: the design

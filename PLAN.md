@@ -22,19 +22,6 @@ This file is the **single source of truth for where the project is going**. Upda
 
 ---
 
-## Success criteria
-
-By the end, these resume bullets should all be true:
-
-- "Modernized a 2021 jQuery school project (FbPlaybook.js) — migrated 1330-line library to ~400 lines of typed ES modules"
-- "Dropped 30KB jQuery dependency; ships at ~4KB gzipped"
-- "Built embeddable in-browser code playground (CodeMirror 6 + iframe sandbox) for live API exploration"
-- "Added JSON export/import — feature not present in original"
-- "Published to npm as `@connorburns/playbook`"
-
-If we can't say all five truthfully at the end, we missed.
-
----
 
 ## Phase 1 — Library foundation
 
