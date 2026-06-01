@@ -1,7 +1,7 @@
 # Playbook.ts
 
 A tiny TypeScript library for creating, saving, and animating American Football play
-diagrams. Built on the Web Animations API with **no runtime dependencies** — ~5 KB gzipped.
+diagrams. Built on the Web Animations API with **no runtime dependencies** — ~7.5 KB minified + gzipped.
 
 **[▶ Live demo](https://connorburns.dev/projects/playbook)** · [Roadmap](PLAN.md)
 
