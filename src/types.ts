@@ -80,9 +80,59 @@ export type PageMoves = MoveName[] | Partial<Record<Position, MoveName>>;
 
 /** Plain serializable shape of a playbook page. */
 export interface PageData {
-  image: string;
+  /** Image URL (`data:` or `https:`), or `null` for the placeholder. */
+  image: string | null;
   title: string;
   videoLink?: string | null;
   /** Eleven entries in `POSITIONS` order. Missing/extra entries treated as `'none'`. */
   moves?: MoveName[] | null;
+  /**
+   * Whether the page renders per-page edit affordances (Add/Replace image, video).
+   * Defaults to `false` (read-only) for developer-added pages; `true` for user-saved plays.
+   */
+  editable?: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// SSR option types — used by the string renderers in `render.ts`
+// ---------------------------------------------------------------------------
+
+/** Options for `renderPlayDisplayerHTML` — a subset of `PlayDisplayerOptions` without DOM specifics. */
+export interface PlayDisplayerSSROptions {
+  size: FieldSize;
+  name?: string;
+}
+
+/** Options for `renderSandboxHTML`. `idPrefix` must be unique per page render to avoid id collisions. */
+export interface SandboxSSROptions {
+  size: FieldSize;
+  /** Stable, unique prefix for label/select id pairs. Pass the same value to `spawnSandbox` at hydration. */
+  idPrefix: string;
+  /** When true, renders the name-input row (same as `allowSave` on `spawnSandbox`). Default: false. */
+  allowSave?: boolean;
+}
+
+/** Options for `renderPlaybookHTML`. Pages must be declared up-front (no `addPage` at SSR time). */
+export interface PlaybookSSROptions {
+  title: string;
+  pageOrientation?: 'horizontal' | 'vertical';
+  /** All pages to render. The renderer uses `image`, `title`, `videoLink`, `moves`, `editable`. */
+  pages: PageData[];
+}
+
+/** Options for `renderConnectedLayoutHTML` / `hydrateConnectedLayout`. */
+export interface ConnectedLayoutSSROptions {
+  /**
+   * Explicit suffix for slot IDs. Must be the same value used at hydration time.
+   * When omitted the auto-counter is used (fine for client-only usage).
+   */
+  idSuffix?: string;
+}
+
+/** Return type of `renderConnectedLayoutHTML`. */
+export interface ConnectedLayoutHTMLResult {
+  html: string;
+  fieldSlot: string;
+  sandboxSlot: string;
+  bookSlot: string;
 }

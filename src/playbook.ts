@@ -14,9 +14,9 @@
  *     the per-page edit affordances on saved plays.
  */
 
-import { createButton, createDiv, mountInto } from './dom.js';
+import { createButton, createDiv, mountInto, queryRequired } from './dom.js';
 import { Page, buildDefaultPage } from './page.js';
-import type { MoveName, PageData, PageMoves } from './types.js';
+import type { MoveName, PageData, PageMoves, PlaybookSSROptions } from './types.js';
 import { POSITIONS } from './types.js';
 import type { PlayDisplayer } from './displayer.js';
 
@@ -78,52 +78,117 @@ export class Playbook {
     this.allowSave = options.allowSave ?? false;
     this.pageOrientation = options.pageOrientation ?? 'horizontal';
 
-    // Optional intro pages (e.g. cover / instructions). Off by default so a
-    // fresh book makes no surprise third-party network request and can be
-    // genuinely empty. Rendered image-only (title used as alt text); for
-    // editable or field-connected pages, use addPage after construction.
-    for (const seed of options.seedPages ?? []) {
-      this.pages.push(buildDefaultPage(seed.image, seed.title));
+    // Private hydration mechanism — set only by the static `hydrate()` factory.
+    const hydrateRoot = (options as PlaybookOptions & { _hydrateRoot?: HTMLElement })._hydrateRoot;
+    const hydratePages = (options as PlaybookOptions & { _hydratePages?: PageData[] })._hydratePages;
+
+    if (hydrateRoot) {
+      // --- Adopt path ---
+      this.root = hydrateRoot as HTMLDivElement;
+      this.leftSlot = queryRequired<HTMLDivElement>(hydrateRoot, '[data-pb-role="left-slot"]');
+      this.rightSlot = queryRequired<HTMLDivElement>(hydrateRoot, '[data-pb-role="right-slot"]');
+      this.backBtn = queryRequired<HTMLButtonElement>(hydrateRoot, '[data-pb-nav="back"]');
+      this.forwardBtn = queryRequired<HTMLButtonElement>(hydrateRoot, '[data-pb-nav="forward"]');
+
+      // Rebuild page elements from data; the SSR'd page-data container is
+      // discarded because page elements need event listeners that can't SSR.
+      for (const pageData of hydratePages ?? []) {
+        const moves = normalizePageMoves(pageData.moves ?? null);
+        this.pages.push(
+          this.buildPage(
+            pageData.image,
+            pageData.title,
+            pageData.videoLink ?? null,
+            moves,
+            pageData.editable ?? false,
+          ),
+        );
+      }
+      hydrateRoot.querySelector('.pb-book-page-data')?.remove();
+      // Clear SSR-pre-populated slot content so renderCurrentPages() starts fresh.
+      this.leftSlot.innerHTML = '';
+      this.rightSlot.innerHTML = '';
+    } else {
+      // --- Build path ---
+
+      // Optional intro pages (e.g. cover / instructions). Off by default so a
+      // fresh book makes no surprise third-party network request and can be
+      // genuinely empty. Rendered image-only (title used as alt text); for
+      // editable or field-connected pages, use addPage after construction.
+      for (const seed of options.seedPages ?? []) {
+        if (seed.image) this.pages.push(buildDefaultPage(seed.image, seed.title));
+      }
+
+      const container = createDiv('pages-container');
+      container.setAttribute('role', 'region');
+      container.setAttribute('aria-label', `Playbook: ${this.title || 'untitled'}`);
+      container.dataset.orientation = this.pageOrientation;
+
+      // Single taskbar above the page slots. Holds Back / Title / Forward —
+      // pure navigation. The Save button is no longer here; consumers mount
+      // it next to their compose UI via `createSaveButton()` so the commit
+      // action lives at the natural end of the editor workflow.
+      const taskbar = createDiv('pb-book-taskbar');
+      this.backBtn = createButton('left-button', 'Back');
+      this.backBtn.dataset.pbNav = 'back';
+      taskbar.append(this.backBtn);
+
+      const titleEl = createDiv('title');
+      titleEl.textContent = this.title;
+      taskbar.append(titleEl);
+
+      this.forwardBtn = createButton('right-button', 'Forward');
+      this.forwardBtn.dataset.pbNav = 'forward';
+      taskbar.append(this.forwardBtn);
+
+      container.append(taskbar);
+
+      // Pages row: two slots side-by-side by default. The right slot is
+      // CSS-hidden when the .pages-container element is narrower than
+      // ~500px (@container query). Navigation step adapts via `pageStep`.
+      const pagesRow = createDiv('pb-book-pages');
+      this.leftSlot = createDiv('page-item');
+      this.leftSlot.dataset.pbRole = 'left-slot';
+      this.rightSlot = createDiv('page-item');
+      this.rightSlot.dataset.pbRole = 'right-slot';
+      pagesRow.append(this.leftSlot, this.rightSlot);
+      container.append(pagesRow);
+
+      this.root = container;
+      mountInto(container, options.parentId);
     }
 
-    const container = createDiv('pages-container');
-    container.setAttribute('role', 'region');
-    container.setAttribute('aria-label', `Playbook: ${this.title || 'untitled'}`);
-    container.dataset.orientation = this.pageOrientation;
-
-    // Single taskbar above the page slots. Holds Back / Title / Forward —
-    // pure navigation. The Save button is no longer here; consumers mount
-    // it next to their compose UI via `createSaveButton()` so the commit
-    // action lives at the natural end of the editor workflow.
-    const taskbar = createDiv('pb-book-taskbar');
-    this.backBtn = createButton('left-button', 'Back');
-    taskbar.append(this.backBtn);
-
-    const titleEl = createDiv('title');
-    titleEl.innerText = this.title;
-    taskbar.append(titleEl);
-
-    this.forwardBtn = createButton('right-button', 'Forward');
-    taskbar.append(this.forwardBtn);
-
-    container.append(taskbar);
-
-    // Pages row: two slots side-by-side by default. The right slot is
-    // CSS-hidden when the .pages-container element is narrower than
-    // ~500px (@container query). Navigation step adapts via `pageStep`.
-    const pagesRow = createDiv('pb-book-pages');
-    this.leftSlot = createDiv('page-item');
-    this.rightSlot = createDiv('page-item');
-    pagesRow.append(this.leftSlot, this.rightSlot);
-    container.append(pagesRow);
-
     this.renderCurrentPages();
-
     this.forwardBtn.addEventListener('click', () => this.goForward());
     this.backBtn.addEventListener('click', () => this.goBack());
+  }
 
-    this.root = container;
-    mountInto(container, options.parentId);
+  // ---------------------------------------------------------------------------
+  // Static hydration entry point
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Adopt a server-rendered `Playbook` root element and make it interactive.
+   * `options.pages` declares every page so the client can rebuild the interactive
+   * page elements (which have event listeners that can't be server-rendered).
+   *
+   * @example
+   * // Server:
+   * const html = renderPlaybookHTML({ title: 'My Book', pages });
+   *
+   * // Client (useEffect):
+   * const book = Playbook.hydrate(rootEl, { title: 'My Book', field, allowSave: false, pages });
+   */
+  static hydrate(
+    root: HTMLElement,
+    options: Omit<PlaybookSSROptions, never> &
+      Omit<PlaybookOptions, 'parentId' | 'seedPages'> & { pages: PageData[] },
+  ): Playbook {
+    return new Playbook({
+      ...options,
+      _hydrateRoot: root,
+      _hydratePages: options.pages,
+    } as PlaybookOptions);
   }
 
   /**
@@ -249,7 +314,7 @@ export class Playbook {
   private saveFieldStateAsPage(): void {
     if (!this.field) return;
     const moves = this.snapshotFieldMoves();
-    const title = this.field.fieldTop.innerText.trim() || 'Untitled Play';
+    const title = (this.field.fieldTop.innerText ?? '').trim() || 'Untitled Play';
     // image + videoLink start as null; user fills them in via per-page edit.
     // editable=true because this is a user-created play.
     this.attachPage(this.buildPage(null, title, null, moves, /* editable */ true));

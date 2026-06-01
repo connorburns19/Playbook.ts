@@ -11,9 +11,9 @@
  */
 
 import { animateInSequence, resetAnimation } from './animation.js';
-import { createDiv, createOption, mountInto } from './dom.js';
+import { createDiv, createOption, mountInto, queryRequired } from './dom.js';
 import { FIELD_NATURAL_WIDTH, getMove, getMoveCatalog } from './moves.js';
-import type { FieldSize, MoveName, MoveStep, Position } from './types.js';
+import type { FieldSize, MoveName, MoveStep, PlayDisplayerSSROptions, Position } from './types.js';
 import { POSITIONS, POSITION_LABELS, POSITION_FULL_NAMES } from './types.js';
 
 export interface PlayDisplayerOptions {
@@ -55,6 +55,17 @@ interface PlayerSlot {
   element: HTMLDivElement;
   moveName: MoveName;
   steps: MoveStep[];
+}
+
+/** Bag of element references shared between the build and adopt paths. */
+interface FieldRefs {
+  root: HTMLDivElement;
+  fieldTop: HTMLDivElement;
+  players: Record<Position, PlayerSlot>;
+  stage: HTMLDivElement;
+  stageInner: HTMLDivElement;
+  playBtn: HTMLButtonElement;
+  resetBtn: HTMLButtonElement;
 }
 
 export class PlayDisplayer {
@@ -101,11 +112,34 @@ export class PlayDisplayer {
     this.size = options.size;
     this.name = options.name;
 
-    const sizeSuffix = options.size === 'large' ? '-large' : '';
+    // The `_hydrateRoot` property is a private convention used by the static
+    // `hydrate()` factory — it is never part of the public `PlayDisplayerOptions` type.
+    const hydrateRoot = (options as PlayDisplayerOptions & { _hydrateRoot?: HTMLElement })
+      ._hydrateRoot;
+
+    const refs = hydrateRoot ? this.adoptRefs(hydrateRoot) : this.buildRefs();
+    this.root = refs.root;
+    this.fieldTop = refs.fieldTop;
+    this.players = refs.players;
+
+    this.wire(refs.playBtn, refs.resetBtn);
+
+    if (!hydrateRoot) mountInto(this.root, options.parentId);
+
+    this.setupResizeObserver(refs.stage, refs.stageInner);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Build path — creates fresh DOM (the default, non-SSR path)
+  // ---------------------------------------------------------------------------
+
+  private buildRefs(): FieldRefs {
+    const sizeSuffix = this.size === 'large' ? '-large' : '';
 
     // Header
-    this.fieldTop = createDiv(`field-top${sizeSuffix}`);
-    this.fieldTop.innerText = '';
+    const fieldTop = createDiv(`field-top${sizeSuffix}`);
+    fieldTop.dataset.pbRole = 'field-top';
+    fieldTop.textContent = '';
 
     // Field rows
     const field = createDiv(`field${sizeSuffix}`);
@@ -131,22 +165,82 @@ export class PlayDisplayer {
       el.setAttribute('role', 'img');
       players[pos] = { element: el, moveName: 'none', steps: [] };
     }
-    this.players = players as Record<Position, PlayerSlot>;
 
     // Place players into formation rows
     const frontPositions: Position[] = ['lte', 'lt', 'lg', 'c', 'rg', 'rt', 'rte'];
     const backPositions: Position[] = ['lhb', 'fb', 'rhb'];
-    for (const pos of frontPositions) frontLine.append(this.players[pos].element);
-    middleLine.append(this.players.qb.element);
-    for (const pos of backPositions) backLine.append(this.players[pos].element);
+    for (const pos of frontPositions) frontLine.append(players[pos]!.element);
+    middleLine.append(players.qb!.element);
+    for (const pos of backPositions) backLine.append(players[pos]!.element);
 
     field.append(frontLine, middleLine, backLine);
 
     // Play / Reset buttons in their own controls bar below the field.
-    const controls = createDiv('pb-controls');
     const playBtn = document.createElement('button');
     playBtn.type = 'button';
     playBtn.textContent = 'Play Animation';
+    playBtn.dataset.pbControl = 'play';
+
+    const resetBtn = document.createElement('button');
+    resetBtn.type = 'button';
+    resetBtn.textContent = 'Reset';
+    resetBtn.dataset.pbControl = 'reset';
+
+    const controls = createDiv('pb-controls');
+    controls.append(playBtn, resetBtn);
+
+    // Responsive stage: holds field-top + field at their natural pixel
+    // dimensions; scaled-to-fit by a ResizeObserver (see styles.css for the
+    // matching --pb-field-scale custom property).
+    // Seed with scale:1 so the renderer and the build path both start from
+    // the same baseline; setupResizeObserver overwrites this once clientWidth
+    // is available.
+    const stage = createDiv('pb-field-stage');
+    stage.dataset.size = this.size;
+    stage.dataset.pbRole = 'stage';
+
+    const stageInner = createDiv('pb-field-inner');
+    stageInner.dataset.pbRole = 'inner';
+    stageInner.setAttribute('style', '--pb-field-scale:1');
+    stageInner.append(fieldTop, field);
+    stage.append(stageInner);
+
+    // Outer wrapper
+    const root = createDiv('pb-displayer');
+    root.dataset.size = this.size;
+    root.setAttribute('role', 'region');
+    root.setAttribute('aria-label', `Play displayer: ${this.name || 'unnamed'}`);
+    root.append(stage, controls);
+
+    return { root, fieldTop, players: players as Record<Position, PlayerSlot>, stage, stageInner, playBtn, resetBtn };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Adopt path — finds existing DOM nodes by stable data-attribute hooks
+  // ---------------------------------------------------------------------------
+
+  private adoptRefs(hydrateRoot: HTMLElement): FieldRefs {
+    const root = hydrateRoot as HTMLDivElement;
+    const fieldTop = queryRequired<HTMLDivElement>(root, '[data-pb-role="field-top"]');
+    const stage = queryRequired<HTMLDivElement>(root, '[data-pb-role="stage"]');
+    const stageInner = queryRequired<HTMLDivElement>(root, '[data-pb-role="inner"]');
+    const playBtn = queryRequired<HTMLButtonElement>(root, '[data-pb-control="play"]');
+    const resetBtn = queryRequired<HTMLButtonElement>(root, '[data-pb-control="reset"]');
+
+    const players: Partial<Record<Position, PlayerSlot>> = {};
+    for (const pos of POSITIONS) {
+      const el = queryRequired<HTMLDivElement>(root, `[data-position="${pos}"]`);
+      players[pos] = { element: el, moveName: 'none', steps: [] };
+    }
+
+    return { root, fieldTop, players: players as Record<Position, PlayerSlot>, stage, stageInner, playBtn, resetBtn };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Wire — attaches all event listeners; identical for build and adopt paths
+  // ---------------------------------------------------------------------------
+
+  private wire(playBtn: HTMLButtonElement, resetBtn: HTMLButtonElement): void {
     playBtn.addEventListener('click', () => {
       // Swallow the rejection from cancel (Reset hit mid-play). The state
       // machine has already flipped to 'idle' by the time we get here, so
@@ -157,14 +251,9 @@ export class PlayDisplayer {
       });
     });
 
-    const resetBtn = document.createElement('button');
-    resetBtn.type = 'button';
-    resetBtn.textContent = 'Reset';
     resetBtn.addEventListener('click', () => {
       this.reset();
     });
-
-    controls.append(playBtn, resetBtn);
 
     // Wire Play / Reset to the playback state machine + moves signal.
     // Play disables for two independent reasons:
@@ -188,29 +277,17 @@ export class PlayDisplayer {
       resetBtn.style.visibility = state === 'idle' ? 'hidden' : 'visible';
     });
     this.onMovesChange(updatePlayDisabled);
+  }
 
-    // Responsive stage: holds field-top + field at their natural pixel
-    // dimensions; scaled-to-fit by a ResizeObserver below (see styles.css
-    // for the matching --pb-field-scale custom property).
-    const stage = createDiv('pb-field-stage');
-    stage.dataset.size = options.size;
-    const stageInner = createDiv('pb-field-inner');
-    stageInner.append(this.fieldTop, field);
-    stage.append(stageInner);
+  // ---------------------------------------------------------------------------
+  // ResizeObserver — shared setup for build and adopt paths
+  // ---------------------------------------------------------------------------
 
-    // Outer wrapper
-    this.root = createDiv('pb-displayer');
-    this.root.dataset.size = options.size;
-    this.root.setAttribute('role', 'region');
-    this.root.setAttribute('aria-label', `Play displayer: ${this.name || 'unnamed'}`);
-    this.root.append(stage, controls);
-
-    mountInto(this.root, options.parentId);
-
+  private setupResizeObserver(stage: HTMLDivElement, stageInner: HTMLDivElement): void {
     // Keep `--pb-field-scale` in sync with the stage's actual width so the
     // inner (at natural pixel dimensions) visually fills the available space.
     // Capped at 1 so we never upscale beyond natural size.
-    const naturalWidth = FIELD_NATURAL_WIDTH[options.size];
+    const naturalWidth = FIELD_NATURAL_WIDTH[this.size];
     const applyScale = (): void => {
       const w = stage.clientWidth;
       if (w > 0) {
@@ -224,6 +301,10 @@ export class PlayDisplayer {
       this.resizeObserver.observe(stage);
     }
   }
+
+  // ---------------------------------------------------------------------------
+  // Public API
+  // ---------------------------------------------------------------------------
 
   /** Set the move assignment for a position. Pass `'none'` to clear. */
   setMove(position: Position, move: MoveName): void {
@@ -302,7 +383,7 @@ export class PlayDisplayer {
 
   /** Update the title shown above the field. */
   setFieldName(name: string): void {
-    this.fieldTop.innerText = name;
+    this.fieldTop.textContent = name;
   }
 
   /** Current playback state (idle / playing / played). */
@@ -400,52 +481,117 @@ export class PlayDisplayer {
    * can compose their own animation. Reactive: each select change is applied immediately,
    * no Confirm step. When `allowSave`, also renders a name input whose `input` event
    * updates the field header live (used as the default play name when saving to a `Playbook`).
+   *
+   * @param idPrefix - When provided, uses this as the unique suffix for label/select ids
+   *   instead of the auto-counter. Required for SSR hydration so server and client ids match.
+   * @param hydrateShell - When provided, adopts this existing element instead of building
+   *   new DOM. The element must have been produced by `renderSandboxHTML` with the same
+   *   options. No nodes are created or removed — existing selects/inputs are adopted.
    */
   spawnSandbox(
     allowSave: boolean = false,
     parentId?: string | null,
     saveButton?: HTMLElement | null,
+    idPrefix?: string,
+    hydrateShell?: HTMLElement | null,
   ): HTMLDivElement {
-    const shell = createDiv(this.size === 'large' ? 'sandbox-large' : 'sandbox');
-
-    const grid = createDiv('forms2');
-
-    const catalog = getMoveCatalog(this.size);
-    // Unique per spawnSandbox call so label/select id pairs never collide —
-    // even with multiple sandboxes or same-named displayers on one page.
-    const uid = String((sandboxIdCounter += 1));
+    const uid = idPrefix ?? String((sandboxIdCounter += 1));
 
     // Register this sandbox's selects with the displayer so external state
     // changes (e.g. Initialize Play loading a saved play) push back into them.
     const selectsForThisSandbox: Partial<Record<Position, HTMLSelectElement>> = {};
     this.sandboxSelectGroups.push(selectsForThisSandbox);
 
-    for (const pos of POSITIONS) {
-      const label = document.createElement('label');
-      label.innerText = `${POSITION_LABELS[pos]}: `;
-      label.htmlFor = `pb-select-${pos}-${uid}`;
+    let shell: HTMLDivElement;
 
-      const select = document.createElement('select');
-      select.id = `pb-select-${pos}-${uid}`;
-      select.name = POSITION_LABELS[pos];
-      // Stable, collision-free hook for querying a specific position's select.
-      select.dataset.position = pos;
+    if (hydrateShell) {
+      // --- Adopt path: wire existing DOM ---
+      shell = hydrateShell as HTMLDivElement;
 
-      select.append(createOption('none'));
-      for (const move of catalog) {
-        select.append(createOption(move.name));
+      for (const pos of POSITIONS) {
+        const select = queryRequired<HTMLSelectElement>(
+          shell,
+          `select[data-position="${pos}"]`,
+        );
+        // Sync to current field state (field may have moves set before hydration).
+        select.value = this.players[pos].moveName;
+        select.addEventListener('change', () => {
+          this.setMove(pos, select.value as MoveName);
+        });
+        selectsForThisSandbox[pos] = select;
       }
 
-      // Reflect current displayer state on initial render.
-      select.value = this.players[pos].moveName;
+      if (allowSave) {
+        const nameInput = queryRequired<HTMLInputElement>(shell, 'input[aria-label="Play name"]');
+        nameInput.addEventListener('input', () => {
+          this.setFieldName(nameInput.value);
+        });
+        if (saveButton) {
+          const nameWrap = queryRequired<HTMLDivElement>(shell, '.pb-sandbox-rename');
+          const placeholder = nameWrap.querySelector('[data-pb-role="save-placeholder"]');
+          if (placeholder) {
+            nameWrap.replaceChild(saveButton, placeholder);
+          } else {
+            nameWrap.append(saveButton);
+          }
+        }
+      }
+    } else {
+      // --- Build path: create fresh DOM ---
+      shell = createDiv(this.size === 'large' ? 'sandbox-large' : 'sandbox');
 
-      // Reactive: apply the move immediately when the user picks one.
-      select.addEventListener('change', () => {
-        this.setMove(pos, select.value as MoveName);
-      });
+      const grid = createDiv('forms2');
+      const catalog = getMoveCatalog(this.size);
 
-      selectsForThisSandbox[pos] = select;
-      grid.append(label, select);
+      for (const pos of POSITIONS) {
+        const label = document.createElement('label');
+        label.innerText = `${POSITION_LABELS[pos]}: `;
+        label.htmlFor = `pb-select-${pos}-${uid}`;
+
+        const select = document.createElement('select');
+        select.id = `pb-select-${pos}-${uid}`;
+        select.name = POSITION_LABELS[pos];
+        // Stable, collision-free hook for querying a specific position's select.
+        select.dataset.position = pos;
+
+        select.append(createOption('none'));
+        for (const move of catalog) {
+          select.append(createOption(move.name));
+        }
+
+        // Reflect current displayer state on initial render.
+        select.value = this.players[pos].moveName;
+
+        // Reactive: apply the move immediately when the user picks one.
+        select.addEventListener('change', () => {
+          this.setMove(pos, select.value as MoveName);
+        });
+
+        selectsForThisSandbox[pos] = select;
+        grid.append(label, select);
+      }
+
+      shell.append(grid);
+
+      if (allowSave) {
+        // Reactive name input — typing updates the field header live, no "Set" button.
+        const nameWrap = createDiv('pb-sandbox-rename');
+
+        const nameInput = document.createElement('input');
+        nameInput.type = 'text';
+        nameInput.placeholder = 'Name this play';
+        nameInput.setAttribute('aria-label', 'Play name');
+
+        nameInput.addEventListener('input', () => {
+          this.setFieldName(nameInput.value);
+        });
+
+        nameWrap.append(nameInput);
+        if (saveButton) nameWrap.append(saveButton);
+        shell.append(nameWrap);
+      }
+
+      mountInto(shell, parentId);
     }
 
     // Lock dropdowns while an animation is running — changing a move
@@ -459,27 +605,6 @@ export class PlayDisplayer {
       }
     });
 
-    shell.append(grid);
-
-    if (allowSave) {
-      // Reactive name input — typing updates the field header live, no "Set" button.
-      const nameWrap = createDiv('pb-sandbox-rename');
-
-      const nameInput = document.createElement('input');
-      nameInput.type = 'text';
-      nameInput.placeholder = 'Name this play';
-      nameInput.setAttribute('aria-label', 'Play name');
-
-      nameInput.addEventListener('input', () => {
-        this.setFieldName(nameInput.value);
-      });
-
-      nameWrap.append(nameInput);
-      if (saveButton) nameWrap.append(saveButton);
-      shell.append(nameWrap);
-    }
-
-    mountInto(shell, parentId);
     this.sandboxes.push(shell);
     return shell;
   }
@@ -514,5 +639,31 @@ export class PlayDisplayer {
     this.sandboxes.length = 0;
     this.root.remove();
   }
-}
 
+  // ---------------------------------------------------------------------------
+  // Static hydration entry point
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Adopt a server-rendered `PlayDisplayer` root element and make it interactive.
+   * The `root` must have been produced by `renderPlayDisplayerHTML(options)` with
+   * the same `size` and `name`. No DOM nodes are created or removed — existing
+   * nodes are adopted and event listeners are attached.
+   *
+   * @example
+   * // Server (Next.js RSC or getServerSideProps):
+   * const html = renderPlayDisplayerHTML({ size: 'large', name: 'My Play' });
+   *
+   * // Client (useEffect / 'use client'):
+   * const field = PlayDisplayer.hydrate(rootEl, { size: 'large', name: 'My Play' });
+   */
+  static hydrate(
+    root: HTMLElement,
+    options: Omit<PlayDisplayerSSROptions, never> & Omit<PlayDisplayerOptions, 'parentId'>,
+  ): PlayDisplayer {
+    return new PlayDisplayer({
+      ...options,
+      _hydrateRoot: root,
+    } as PlayDisplayerOptions);
+  }
+}

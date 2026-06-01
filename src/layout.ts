@@ -23,7 +23,7 @@
  *                         width in its column → renders two pages.
  */
 
-import { createDiv, mountInto } from './dom.js';
+import { createDiv, mountInto, queryRequired } from './dom.js';
 
 export interface ConnectedLayout {
   /** ID of the div to pass to `new PlayDisplayer(...).parentId`. */
@@ -42,6 +42,55 @@ export interface ConnectedLayout {
 }
 
 let counter = 0;
+
+/**
+ * Adopt a server-rendered connected-layout scaffold and re-attach the
+ * height-sync ResizeObserver. Returns the same `ConnectedLayout` interface as
+ * `createConnectedLayout` so downstream wiring code is identical.
+ *
+ * Slot IDs are read directly from the existing DOM elements; `options.idSuffix`
+ * is accepted for API symmetry with `renderConnectedLayoutHTML` but is unused —
+ * the server-rendered elements already carry the correct ids.
+ *
+ * Note: `destroy()` removes the scaffold from the DOM, consistent with the
+ * `ConnectedLayout` interface contract. In a framework (Next.js), call this
+ * inside your unmount cleanup after destroying the child widgets.
+ */
+export function hydrateConnectedLayout(
+  root: HTMLElement,
+  _options?: { idSuffix?: string },
+): ConnectedLayout {
+  const bookCol = queryRequired<HTMLElement>(root, '.pb-connected-layout__book');
+  const mainCol = queryRequired<HTMLElement>(root, '.pb-connected-layout__main');
+  const fieldSlotEl = queryRequired<HTMLElement>(root, '.pb-connected-layout__field');
+  const sandboxSlotEl = queryRequired<HTMLElement>(root, '.pb-connected-layout__sandbox');
+
+  let ro: ResizeObserver | null = null;
+  if (typeof ResizeObserver !== 'undefined') {
+    ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const h = entry.contentRect.height;
+        if (h > 0) root.style.setProperty('--pb-connected-main-h', `${h}px`);
+      }
+    });
+    ro.observe(mainCol);
+  }
+
+  let destroyed = false;
+
+  return {
+    fieldSlot: fieldSlotEl.id,
+    sandboxSlot: sandboxSlotEl.id,
+    bookSlot: bookCol.id,
+    destroy() {
+      if (destroyed) return;
+      destroyed = true;
+      ro?.disconnect();
+      ro = null;
+      root.remove();
+    },
+  };
+}
 
 /**
  * Build the connected-layout scaffold under `parentId` (or `document.body`

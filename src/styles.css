@@ -755,7 +755,7 @@
 .pb-field-stage {
   position: relative;
   width: 100%;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .pb-field-stage[data-size="large"] {
@@ -772,6 +772,7 @@
   left: 0;
   transform-origin: top left;
   transform: scale(var(--pb-field-scale, 1));
+  transition: transform 0.15s ease;
 }
 
 .pb-field-stage[data-size="large"] .pb-field-inner {

@@ -26,6 +26,25 @@ export function createOption(value: string, label: string = value): HTMLOptionEl
 }
 
 /**
+ * Query `root` for `selector` and return the element. Throws a descriptive
+ * error if not found — used by the `adopt()` path to catch markup drift early
+ * rather than producing a cryptic null-dereference later.
+ */
+export function queryRequired<T extends Element = Element>(
+  root: ParentNode,
+  selector: string,
+): T {
+  const el = root.querySelector<T>(selector);
+  if (!el) {
+    throw new Error(
+      `[playbook] hydrate: expected element matching "${selector}" but found none. ` +
+        'The server-rendered markup may be outdated — re-render with the current renderHTML functions.',
+    );
+  }
+  return el;
+}
+
+/**
  * Append `element` to the DOM node with id `parentId`. Falls back to
  * `document.body` when `parentId` is null/undefined (the documented "mount at
  * body" path) — but when a *specific* `parentId` is given and not found, that's

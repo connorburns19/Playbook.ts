@@ -31,5 +31,20 @@ export { getMove, getMoveCatalog, KNOWN_MOVE_NAMES } from './moves.js';
 
 export { animateInSequence, resetAnimation } from './animation.js';
 
-export { createConnectedLayout } from './layout.js';
+export { createConnectedLayout, hydrateConnectedLayout } from './layout.js';
 export type { ConnectedLayout } from './layout.js';
+
+export {
+  renderPlayDisplayerHTML,
+  renderSandboxHTML,
+  renderPlaybookHTML,
+  renderConnectedLayoutHTML,
+} from './render.js';
+
+export type {
+  PlayDisplayerSSROptions,
+  SandboxSSROptions,
+  PlaybookSSROptions,
+  ConnectedLayoutSSROptions,
+  ConnectedLayoutHTMLResult,
+} from './types.js';

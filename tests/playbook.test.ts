@@ -36,7 +36,7 @@ describe('PlayDisplayer', () => {
   it('setFieldName updates the header text', () => {
     const f = new PlayDisplayer({ size: 'large', name: 'Test5', parentId: 'root' });
     f.setFieldName('Hail Mary');
-    expect(f.fieldTop.innerText).toBe('Hail Mary');
+    expect(f.fieldTop.textContent).toBe('Hail Mary');
   });
 
   it('reset cancels all animations on player elements', () => {
@@ -118,7 +118,7 @@ describe('Playbook', () => {
     // doesn't enforce position-specific rules — it should still get assigned.
     expect(field.getAssignedMove('lte')).toBe('pass-qb');
     expect(field.getAssignedMove('qb')).toBe('pass-qb');
-    expect(field.fieldTop.innerText).toBe('My Play');
+    expect(field.fieldTop.textContent).toBe('My Play');
   });
 
   it('developer-added pages stay read-only even when allowSave is true', () => {
@@ -382,7 +382,7 @@ describe('Reactive sandbox', () => {
     nameInput.value = 'My Custom Play';
     nameInput.dispatchEvent(new Event('input'));
 
-    expect(field.fieldTop.innerText).toBe('My Custom Play');
+    expect(field.fieldTop.textContent).toBe('My Custom Play');
   });
 });
 
